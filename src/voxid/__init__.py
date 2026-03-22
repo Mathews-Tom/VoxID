@@ -8,6 +8,7 @@ from .adapters import (
     register_adapter,
 )
 from .api import create_app
+from .archive import ArchiveExporter, ArchiveImporter
 from .config import VoxIDConfig, load_config
 from .models import ConsentRecord, Identity, Style
 from .plugins.voicebox import (
@@ -25,6 +26,7 @@ from .segments import (
     export_plan,
 )
 from .store import VoicePromptStore
+from .versioning import EmbeddingVersion, VersionTracker
 from .video import (
     WordTiming,
     build_manim_config,
@@ -66,6 +68,12 @@ __all__ = [
     "register_adapter",
     "get_adapter",
     "list_adapters",
+    # archive
+    "ArchiveExporter",
+    "ArchiveImporter",
+    # versioning
+    "EmbeddingVersion",
+    "VersionTracker",
     # router
     "StyleRouter",
     "RouteDecision",
