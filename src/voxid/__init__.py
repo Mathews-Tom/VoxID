@@ -7,6 +7,7 @@ from .adapters import (
     list_adapters,
     register_adapter,
 )
+from .api import create_app
 from .config import VoxIDConfig, load_config
 from .models import ConsentRecord, Identity, Style
 from .router import RouteDecision, StyleRouter
@@ -34,6 +35,8 @@ __version__ = "0.1.0"
 
 __all__ = [
     "__version__",
+    # api
+    "create_app",
     # models
     "ConsentRecord",
     "Identity",
