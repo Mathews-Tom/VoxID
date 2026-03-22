@@ -171,6 +171,16 @@ def generate(
     import shutil
 
     vox = VoxID()
+
+    if style_name is None:
+        routing = vox.route(text=text, identity_id=identity_id)
+        click.echo(
+            click.style("Auto-routed: ", fg="cyan")
+            + f"style={routing['style']!r}"
+            + f"  confidence={routing['confidence']:.2f}"
+            + f"  tier={routing['tier']}"
+        )
+
     audio_path, sr = vox.generate(
         text=text,
         identity_id=identity_id,
@@ -197,6 +207,11 @@ def route(text: str, identity_id: str) -> None:
     result = vox.route(text=text, identity_id=identity_id)
     click.echo(click.style("Routing decision:", fg="cyan"))
     click.echo(f"  style:      {result['style']}")
-    click.echo(f"  confidence: {result['confidence']}")
+    click.echo(f"  confidence: {result['confidence']:.2f}")
     click.echo(f"  tier:       {result['tier']}")
-    click.echo(f"  scores:     {result['scores']}")
+    click.echo("  scores:")
+    for s, score in sorted(
+        result["scores"].items(), key=lambda x: x[1], reverse=True,
+    ):
+        bar = "█" * int(score * 20)
+        click.echo(f"    {s:20s} {score:.2f} {bar}")
