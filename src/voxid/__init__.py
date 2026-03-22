@@ -9,6 +9,7 @@ from .adapters import (
 )
 from .config import VoxIDConfig, load_config
 from .models import ConsentRecord, Identity, Style
+from .router import RouteDecision, StyleRouter
 from .schemas import GeneratedScene, GenerationResult, SceneManifest, SceneNarration
 from .store import VoicePromptStore
 
@@ -36,4 +37,7 @@ __all__ = [
     "register_adapter",
     "get_adapter",
     "list_adapters",
+    # router
+    "StyleRouter",
+    "RouteDecision",
 ]

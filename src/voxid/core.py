@@ -10,6 +10,7 @@ import soundfile as sf  # type: ignore[import-untyped]
 from .adapters import TTSEngineAdapter, _registry
 from .config import VoxIDConfig, load_config
 from .models import ConsentRecord, Identity, Style
+from .router import StyleRouter
 from .store import VoicePromptStore
 
 
@@ -41,6 +42,11 @@ class VoxID:
     def __init__(self, config: VoxIDConfig | None = None) -> None:
         self._config = config or load_config()
         self._store = VoicePromptStore(self._config.store_path)
+        self._router = StyleRouter(
+            cache_dir=self._config.store_path / "cache" / "router",
+            confidence_threshold=self._config.router_confidence_threshold,
+            cache_ttl=self._config.cache_ttl_seconds,
+        )
 
     def create_identity(
         self,
@@ -135,7 +141,19 @@ class VoxID:
         engine: str | None = None,
     ) -> tuple[Path, int]:
         identity = self._store.get_identity(identity_id)
-        style_id = style or identity.default_style
+
+        if style is not None:
+            style_id = style
+        else:
+            available = self._store.list_styles(identity_id)
+            if not available:
+                style_id = identity.default_style
+            else:
+                decision = self._router.route(
+                    text, available, identity.default_style,
+                )
+                style_id = decision.style
+
         style_obj = self._store.get_style(identity_id, style_id)
         eng = engine or style_obj.default_engine
 
@@ -169,11 +187,17 @@ class VoxID:
         text: str,
         identity_id: str,
     ) -> dict[str, Any]:
-        """Dry-run style classification. Phase 0 always returns default_style."""
+        """Dry-run style classification using the StyleRouter."""
         identity = self._store.get_identity(identity_id)
+        available = self._store.list_styles(identity_id)
+        if not available:
+            available = [identity.default_style]
+        decision = self._router.route(
+            text, available, identity.default_style,
+        )
         return {
-            "style": identity.default_style,
-            "confidence": 1.0,
-            "tier": "default",
-            "scores": {identity.default_style: 1.0},
+            "style": decision.style,
+            "confidence": decision.confidence,
+            "tier": decision.tier,
+            "scores": decision.scores,
         }
