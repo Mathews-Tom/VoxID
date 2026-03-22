@@ -17,6 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 qwen3-tts = ["qwen-tts>=0.1"]
+qwen3-tts-mlx = ["mlx-audio>=0.1"]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
@@ -40,6 +41,22 @@ python_version = "3.12"
 
 [[tool.mypy.overrides]]
 module = "tomli_w"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "qwen_tts"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "qwen_tts.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "mlx_audio.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "torch"
 ignore_missing_imports = true
 
 [tool.ruff]
