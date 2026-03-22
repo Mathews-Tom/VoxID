@@ -62,10 +62,33 @@ def list_adapters() -> list[str]:
     return list(_registry)
 
 
+def discover_adapters() -> None:
+    """Import all built-in adapter modules to trigger registration.
+
+    Adapters that require uninstalled packages will fail silently
+    (they raise ImportError only when _ensure_model is called).
+    """
+    import importlib
+
+    for module_name in [
+        "voxid.adapters.stub",
+        "voxid.adapters.qwen3_tts",
+        "voxid.adapters.fish_speech",
+        "voxid.adapters.cosyvoice2",
+        "voxid.adapters.indextts2",
+        "voxid.adapters.chatterbox",
+    ]:
+        try:
+            importlib.import_module(module_name)
+        except Exception:
+            pass  # Adapter registration is best-effort
+
+
 __all__ = [
     "EngineCapabilities",
     "TTSEngineAdapter",
     "register_adapter",
     "get_adapter",
     "list_adapters",
+    "discover_adapters",
 ]

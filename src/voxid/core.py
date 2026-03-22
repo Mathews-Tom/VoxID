@@ -50,6 +50,9 @@ def _get_adapter_for_engine(engine: str) -> type[TTSEngineAdapter]:
 
 class VoxID:
     def __init__(self, config: VoxIDConfig | None = None) -> None:
+        from .adapters import discover_adapters
+
+        discover_adapters()
         self._config = config or load_config()
         self._store = VoicePromptStore(self._config.store_path)
         self._router = StyleRouter(
@@ -57,6 +60,51 @@ class VoxID:
             confidence_threshold=self._config.router_confidence_threshold,
             cache_ttl=self._config.cache_ttl_seconds,
         )
+
+    def _select_engine(
+        self,
+        language: str,
+        need_streaming: bool = False,
+        need_emotion: bool = False,
+    ) -> str:
+        """Select best engine using capability flags.
+
+        Preference order:
+        1. Default engine from config
+        2. Engine matching language requirement
+        3. Engine matching streaming/emotion need
+        """
+        from .adapters import _registry, discover_adapters
+
+        discover_adapters()
+
+        default = self._config.default_engine
+        # Check if default supports the language
+        if default in _registry:
+            adapter_cls = _registry[default]
+            instance = adapter_cls()
+            caps = instance.capabilities
+            lang_code = language.split("-")[0]
+            if lang_code in caps.supported_languages:
+                if not need_streaming or caps.supports_streaming:
+                    if not need_emotion or caps.supports_emotion_control:
+                        return default
+
+        # Scan all registered adapters for best match
+        for name, cls in _registry.items():
+            instance = cls()
+            caps = instance.capabilities
+            lang_code = language.split("-")[0]
+            if lang_code not in caps.supported_languages:
+                continue
+            if need_streaming and not caps.supports_streaming:
+                continue
+            if need_emotion and not caps.supports_emotion_control:
+                continue
+            return name
+
+        # Fallback to default
+        return default
 
     def create_identity(
         self,
@@ -447,6 +495,33 @@ class VoxID:
             manifest_id=str(manifest_id),
             scenes=planned_scenes,
             total_duration_ms=0,
+        )
+
+    def export_identity(
+        self,
+        identity_id: str,
+        output_path: Path,
+        signing_key: bytes | None = None,
+    ) -> Path:
+        """Export identity to a .voxid archive."""
+        from .archive import ArchiveExporter
+
+        exporter = ArchiveExporter(self._store)
+        return exporter.export(
+            identity_id, output_path, signing_key,
+        )
+
+    def import_identity(
+        self,
+        archive_path: Path,
+        signing_key: bytes | None = None,
+    ) -> Identity:
+        """Import identity from a .voxid archive."""
+        from .archive import ArchiveImporter
+
+        importer = ArchiveImporter(self._store)
+        return importer.import_archive(
+            archive_path, signing_key,
         )
 
     def list_identities(self) -> list[str]:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import click
 
 from .core import VoxID
@@ -199,8 +201,6 @@ def generate(
     manifest_path: str | None,
 ) -> None:
     """Generate audio from text."""
-    from pathlib import Path
-
     if manifest_path is not None:
         if text is not None or file_path is not None or segments:
             raise click.UsageError(
@@ -346,6 +346,38 @@ def route(text: str, identity_id: str) -> None:
     ):
         bar = "█" * int(score * 20)
         click.echo(f"    {s:20s} {score:.2f} {bar}")
+
+
+@cli.command("export")
+@click.argument("identity_id")
+@click.argument("output", type=click.Path())
+@click.option("--key", default=None, help="HMAC signing key.")
+def export_cmd(identity_id: str, output: str, key: str | None) -> None:
+    """Export identity to a .voxid archive."""
+    vox = VoxID()
+    signing_key = key.encode() if key else None
+    path = vox.export_identity(
+        identity_id, Path(output), signing_key,
+    )
+    click.echo(
+        click.style("Exported: ", fg="green") + str(path)
+    )
+
+
+@cli.command("import")
+@click.argument("archive", type=click.Path(exists=True))
+@click.option("--key", default=None, help="HMAC verification key.")
+def import_cmd(archive: str, key: str | None) -> None:
+    """Import identity from a .voxid archive."""
+    vox = VoxID()
+    signing_key = key.encode() if key else None
+    identity = vox.import_identity(
+        Path(archive), signing_key,
+    )
+    click.echo(
+        click.style("Imported: ", fg="green")
+        + identity.id
+    )
 
 
 @cli.command()
