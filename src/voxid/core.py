@@ -12,6 +12,7 @@ from .adapters import TTSEngineAdapter, _registry
 from .config import VoxIDConfig, load_config
 from .models import ConsentRecord, Identity, Style
 from .router import StyleRouter
+from .schemas import GeneratedScene, GenerationResult, SceneManifest
 from .segments import (
     AudioStitcher,
     SegmentGenerationResult,
@@ -20,6 +21,7 @@ from .segments import (
     export_plan,
 )
 from .store import VoicePromptStore
+from .video.timing import estimate_word_timings, timings_to_tuples
 
 
 def _get_adapter_for_engine(engine: str) -> type[TTSEngineAdapter]:
@@ -294,6 +296,157 @@ class VoxID:
             stitched_path=stitched_path,
             total_duration_ms=total_duration_ms,
             plan=plan,
+        )
+
+    def generate_from_manifest(
+        self,
+        manifest: SceneManifest,
+        output_dir: Path | None = None,
+        stitch: bool = True,
+    ) -> GenerationResult:
+        """Generate audio for all scenes in a SceneManifest.
+
+        For each scene:
+        1. Route style (or use explicit style override from scene)
+        2. Generate audio via adapter
+        3. Estimate word-level timing
+        4. Save per-scene WAV
+
+        If stitch=True, concatenate all scene audio into one file.
+        Returns GenerationResult with per-scene details.
+        """
+        identity = self._store.get_identity(manifest.identity_id)
+        available_styles = self._store.list_styles(manifest.identity_id)
+        if not available_styles:
+            available_styles = [identity.default_style]
+
+        manifest_id = manifest.metadata.get(
+            "id",
+            hashlib.sha256(
+                manifest.model_dump_json().encode()
+            ).hexdigest()[:16],
+        )
+
+        if output_dir is None:
+            output_dir = (
+                self._config.store_path / "output" / "manifest" / str(manifest_id)
+            )
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        generated_scenes: list[GeneratedScene] = []
+        audio_segments: list[tuple[np.ndarray, int]] = []
+
+        for scene in manifest.scenes:
+            if scene.style is not None:
+                style_id = scene.style
+            else:
+                decision = self._router.route(
+                    scene.text, available_styles, identity.default_style,
+                )
+                style_id = decision.style
+
+            style_obj = self._store.get_style(manifest.identity_id, style_id)
+            eng = manifest.engine or style_obj.default_engine
+
+            prompt_path = self._ensure_prompt(manifest.identity_id, style_id, eng)
+
+            adapter_cls = _get_adapter_for_engine(eng)
+            adapter = adapter_cls()
+
+            waveform, sr = adapter.generate(
+                scene.text,
+                prompt_path,
+                language=style_obj.language,
+            )
+
+            duration_ms = len(waveform) * 1000 // sr
+
+            scene_path = output_dir / f"{scene.scene_id}.wav"
+            sf.write(str(scene_path), waveform, sr)
+
+            word_timings = timings_to_tuples(
+                estimate_word_timings(scene.text, duration_ms)
+            )
+
+            generated_scenes.append(
+                GeneratedScene(
+                    scene_id=scene.scene_id,
+                    audio_path=str(scene_path),
+                    duration_ms=duration_ms,
+                    word_timings=word_timings,
+                    style_used=style_id,
+                    engine_used=eng,
+                )
+            )
+            audio_segments.append((waveform, sr))
+
+        if stitch and audio_segments:
+            stitcher = AudioStitcher()
+            stitched_output = output_dir / "stitched.wav"
+            stitcher.stitch(
+                audio_segments=audio_segments,
+                boundary_types=["sentence"] * len(audio_segments),
+                output_path=stitched_output,
+            )
+
+        total_duration_ms = sum(s.duration_ms for s in generated_scenes)
+
+        return GenerationResult(
+            manifest_id=str(manifest_id),
+            scenes=generated_scenes,
+            total_duration_ms=total_duration_ms,
+        )
+
+    def plan_from_manifest(
+        self,
+        manifest: SceneManifest,
+    ) -> GenerationResult:
+        """Dry-run: route all scenes without generating audio.
+
+        Returns GenerationResult with style/engine decisions
+        but audio_path="" and duration_ms=0.
+        """
+        identity = self._store.get_identity(manifest.identity_id)
+        available_styles = self._store.list_styles(manifest.identity_id)
+        if not available_styles:
+            available_styles = [identity.default_style]
+
+        manifest_id = manifest.metadata.get(
+            "id",
+            hashlib.sha256(
+                manifest.model_dump_json().encode()
+            ).hexdigest()[:16],
+        )
+
+        planned_scenes: list[GeneratedScene] = []
+
+        for scene in manifest.scenes:
+            if scene.style is not None:
+                style_id = scene.style
+            else:
+                decision = self._router.route(
+                    scene.text, available_styles, identity.default_style,
+                )
+                style_id = decision.style
+
+            style_obj = self._store.get_style(manifest.identity_id, style_id)
+            eng = manifest.engine or style_obj.default_engine
+
+            planned_scenes.append(
+                GeneratedScene(
+                    scene_id=scene.scene_id,
+                    audio_path="",
+                    duration_ms=0,
+                    word_timings=[],
+                    style_used=style_id,
+                    engine_used=eng,
+                )
+            )
+
+        return GenerationResult(
+            manifest_id=str(manifest_id),
+            scenes=planned_scenes,
+            total_duration_ms=0,
         )
 
     def list_identities(self) -> list[str]:
