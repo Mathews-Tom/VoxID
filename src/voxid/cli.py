@@ -149,7 +149,7 @@ def style_rebuild(identity_id: str, style_id: str, engine: str) -> None:
 
 
 @cli.command()
-@click.argument("text")
+@click.argument("text", required=False)
 @click.option("--identity", "identity_id", required=True, help="Identity ID.")
 @click.option("--style", "style_name", default=None, help="Style ID.")
 @click.option("--engine", default=None, help="TTS engine override.")
@@ -160,20 +160,96 @@ def style_rebuild(identity_id: str, style_id: str, engine: str) -> None:
     type=click.Path(),
     help="Output path (default: store output dir).",
 )
+@click.option(
+    "--file",
+    "file_path",
+    default=None,
+    type=click.Path(exists=True),
+    help="Read text from file.",
+)
+@click.option(
+    "--segments",
+    is_flag=True,
+    default=False,
+    help="Enable segment-level generation.",
+)
+@click.option(
+    "--plan",
+    "plan_path",
+    default=None,
+    type=click.Path(),
+    help="Export generation plan JSON.",
+)
 def generate(
-    text: str,
+    text: str | None,
     identity_id: str,
     style_name: str | None,
     engine: str | None,
     output: str | None,
+    file_path: str | None,
+    segments: bool,
+    plan_path: str | None,
 ) -> None:
     """Generate audio from text."""
-    import shutil
+    from pathlib import Path
+
+    if file_path is not None:
+        resolved_text = Path(file_path).read_text(encoding="utf-8")
+    elif text is not None:
+        resolved_text = text
+    else:
+        raise click.UsageError("Provide TEXT argument or --file PATH.")
 
     vox = VoxID()
 
+    if segments:
+        result = vox.generate_segments(
+            text=resolved_text,
+            identity_id=identity_id,
+            engine=engine,
+            output_dir=Path(output) if output is not None else None,
+            stitch=True,
+            export_plan_path=Path(plan_path) if plan_path is not None else None,
+        )
+
+        click.echo(
+            click.style(
+                f"Segment plan ({len(result.plan)} segments):", fg="cyan"
+            )
+        )
+        for item in result.plan:
+            smoothed_label = "smoothed" if item.was_smoothed else item.tier
+            preview = item.text[:40].replace("\n", " ")
+            click.echo(
+                f"  [{item.index}] {item.style:<16s}"
+                f" ({item.confidence:.2f}, {smoothed_label})"
+                f' "{preview}..."'
+            )
+
+        seg_dir = (
+            result.segments[0].audio_path.parent
+            if result.segments
+            else Path("output/segments")
+        )
+        click.echo(
+            click.style(
+                f"\nGenerated {len(result.segments)} segments", fg="green"
+            )
+            + f" → {seg_dir}"
+        )
+
+        if result.stitched_path is not None:
+            total_s = result.total_duration_ms / 1000
+            click.echo(
+                click.style("Stitched: ", fg="green")
+                + f"{result.stitched_path} ({total_s:.1f}s)"
+            )
+        return
+
+    import shutil
+
     if style_name is None:
-        routing = vox.route(text=text, identity_id=identity_id)
+        routing = vox.route(text=resolved_text, identity_id=identity_id)
         click.echo(
             click.style("Auto-routed: ", fg="cyan")
             + f"style={routing['style']!r}"
@@ -182,7 +258,7 @@ def generate(
         )
 
     audio_path, sr = vox.generate(
-        text=text,
+        text=resolved_text,
         identity_id=identity_id,
         style=style_name,
         engine=engine,
