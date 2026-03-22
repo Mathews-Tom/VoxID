@@ -346,3 +346,23 @@ def route(text: str, identity_id: str) -> None:
     ):
         bar = "█" * int(score * 20)
         click.echo(f"    {s:20s} {score:.2f} {bar}")
+
+
+@cli.command()
+@click.option("--host", default="0.0.0.0", show_default=True)
+@click.option("--port", default=8765, show_default=True, type=int)
+@click.option("--reload", is_flag=True, default=False)
+def serve(host: str, port: int, reload: bool) -> None:
+    """Start the VoxID REST API server."""
+    import uvicorn
+    click.echo(
+        click.style("Starting VoxID API server", fg="green")
+        + f" on {host}:{port}"
+    )
+    uvicorn.run(
+        "voxid.api.app:create_app",
+        host=host,
+        port=port,
+        reload=reload,
+        factory=True,
+    )
