@@ -19,6 +19,16 @@ from .segments import (
     export_plan,
 )
 from .store import VoicePromptStore
+from .video import (
+    WordTiming,
+    build_manim_config,
+    build_remotion_props,
+    build_scene_timings,
+    check_ffmpeg,
+    composite_video_audio,
+    estimate_word_timings,
+    export_remotion_props,
+)
 
 __version__ = "0.1.0"
 
@@ -53,4 +63,13 @@ __all__ = [
     "SegmentResult",
     "build_segment_plan",
     "export_plan",
+    # video
+    "WordTiming",
+    "estimate_word_timings",
+    "build_scene_timings",
+    "build_manim_config",
+    "build_remotion_props",
+    "export_remotion_props",
+    "check_ffmpeg",
+    "composite_video_audio",
 ]

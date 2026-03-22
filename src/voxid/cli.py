@@ -180,6 +180,13 @@ def style_rebuild(identity_id: str, style_id: str, engine: str) -> None:
     type=click.Path(),
     help="Export generation plan JSON.",
 )
+@click.option(
+    "--manifest",
+    "manifest_path",
+    default=None,
+    type=click.Path(exists=True),
+    help="Generate from SceneManifest JSON file.",
+)
 def generate(
     text: str | None,
     identity_id: str,
@@ -189,9 +196,57 @@ def generate(
     file_path: str | None,
     segments: bool,
     plan_path: str | None,
+    manifest_path: str | None,
 ) -> None:
     """Generate audio from text."""
     from pathlib import Path
+
+    if manifest_path is not None:
+        if text is not None or file_path is not None or segments:
+            raise click.UsageError(
+                "--manifest is mutually exclusive with TEXT, --file, and --segments."
+            )
+        import json
+
+        from .schemas import SceneManifest
+
+        manifest_data = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+        manifest = SceneManifest.model_validate(manifest_data)
+
+        vox = VoxID()
+        manifest_result = vox.generate_from_manifest(
+            manifest,
+            output_dir=Path(output) if output is not None else None,
+            stitch=True,
+        )
+
+        n_scenes = len(manifest_result.scenes)
+        click.echo(
+            click.style(
+                f"Manifest {manifest_result.manifest_id} ({n_scenes} scenes):",
+                fg="cyan",
+            )
+        )
+        for scene in manifest_result.scenes:
+            duration_s = scene.duration_ms / 1000
+            click.echo(
+                f"  [{scene.scene_id}] style={scene.style_used}"
+                f"  engine={scene.engine_used}"
+                f"  duration={duration_s:.1f}s"
+            )
+
+        stitched = (
+            Path(manifest_result.scenes[0].audio_path).parent / "stitched.wav"
+            if manifest_result.scenes
+            else None
+        )
+        if stitched is not None and stitched.exists():
+            total_s = manifest_result.total_duration_ms / 1000
+            click.echo(
+                click.style("Stitched: ", fg="green")
+                + f"{stitched} ({total_s:.1f}s)"
+            )
+        return
 
     if file_path is not None:
         resolved_text = Path(file_path).read_text(encoding="utf-8")
