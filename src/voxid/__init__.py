@@ -10,6 +10,11 @@ from .adapters import (
 from .api import create_app
 from .config import VoxIDConfig, load_config
 from .models import ConsentRecord, Identity, Style
+from .plugins.voicebox import (
+    ProfileSync,
+    VoiceBoxProfile,
+    VoxIDBackend,
+)
 from .router import RouteDecision, StyleRouter
 from .schemas import GeneratedScene, GenerationResult, SceneManifest, SceneNarration
 from .segments import (
@@ -46,6 +51,10 @@ __all__ = [
     "SceneManifest",
     "GeneratedScene",
     "GenerationResult",
+    # plugins.voicebox
+    "VoxIDBackend",
+    "ProfileSync",
+    "VoiceBoxProfile",
     # store
     "VoicePromptStore",
     # config
