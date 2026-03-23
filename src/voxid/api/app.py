@@ -11,7 +11,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="VoxID",
         description="Voice Identity Management Platform API",
-        version="0.1.0",
+        version="0.2.0",
     )
 
     # Middleware — outermost first (rate limit wraps auth wraps app)
