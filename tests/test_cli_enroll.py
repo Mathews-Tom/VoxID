@@ -11,7 +11,16 @@ from click.testing import CliRunner
 
 from voxid.cli import cli
 from voxid.enrollment.cli_ui import render_vu_meter
+from voxid.enrollment.consent import ConsentManager
 from voxid.enrollment.quality_gate import QualityReport
+
+
+def _setup_consent(tmp_path: Path) -> None:
+    """Pre-create consent for an identity so --skip-consent works."""
+    store_path = tmp_path / ".voxid"
+    mgr = ConsentManager(store_path)
+    audio = np.zeros(24000 * 3, dtype=np.float32)
+    mgr.record_consent("alice", audio, 24000, scope="tts")
 
 
 @pytest.fixture
@@ -157,14 +166,15 @@ class TestEnrollCommand:
         mock_getchar: MagicMock,
         mock_recorder_cls: MagicMock,
         cli_runner: CliRunner,
+        tmp_path: Path,
     ) -> None:
         _create_identity(cli_runner)
-        # User presses Q immediately
+        _setup_consent(tmp_path)
         mock_getchar.return_value = "q"
 
         result = cli_runner.invoke(
             cli,
-            ["enroll", "alice", "--styles", "phonetic"],
+            ["enroll", "alice", "--styles", "phonetic", "--skip-consent"],
         )
         assert result.exit_code == 0
 
@@ -175,16 +185,33 @@ class TestEnrollCommand:
         mock_getchar: MagicMock,
         mock_recorder_cls: MagicMock,
         cli_runner: CliRunner,
+        tmp_path: Path,
     ) -> None:
         _create_identity(cli_runner)
-        # Skip all prompts then quit
+        _setup_consent(tmp_path)
         mock_getchar.side_effect = ["s", "s", "s", "s", "s", "q"]
 
         result = cli_runner.invoke(
             cli,
-            ["enroll", "alice", "--styles", "phonetic"],
+            ["enroll", "alice", "--styles", "phonetic", "--skip-consent"],
         )
         assert result.exit_code == 0
+
+    @patch("voxid.cli.click.getchar")
+    def test_enroll_consent_quit_cancels(
+        self,
+        mock_getchar: MagicMock,
+        cli_runner: CliRunner,
+    ) -> None:
+        _create_identity(cli_runner)
+        # Quit at consent prompt
+        mock_getchar.return_value = "q"
+        result = cli_runner.invoke(
+            cli,
+            ["enroll", "alice", "--styles", "phonetic"],
+        )
+        assert result.exit_code != 0
+        assert "cancelled" in result.output
 
 
 class TestImportMode:
@@ -331,3 +358,58 @@ class TestImportMode:
         )
         assert result.exit_code == 0, result.output
         assert result.output.count("Registered style") == 2
+
+
+class TestConsentIntegration:
+    @patch("voxid.cli.AudioRecorder")
+    @patch("voxid.cli.click.getchar")
+    def test_enroll_skip_consent_when_exists(
+        self,
+        mock_getchar: MagicMock,
+        mock_recorder_cls: MagicMock,
+        cli_runner: CliRunner,
+        tmp_path: Path,
+    ) -> None:
+        _create_identity(cli_runner)
+        # Pre-create consent record
+        store_path = tmp_path / ".voxid"
+        consent_mgr = ConsentManager(store_path)
+        consent_mgr.record_consent(
+            "alice",
+            _make_ref_wav(tmp_path / "c.wav").parent.joinpath("c.wav")
+            and np.zeros(24000 * 3, dtype=np.float32),
+            24000,
+            scope="tts",
+        )
+
+        mock_getchar.return_value = "q"
+        result = cli_runner.invoke(
+            cli,
+            [
+                "enroll", "alice",
+                "--styles", "phonetic",
+                "--skip-consent",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        assert "Consent verified" in result.output
+
+    @patch("voxid.cli.AudioRecorder")
+    @patch("voxid.cli.click.getchar")
+    def test_enroll_skip_consent_errors_when_no_existing(
+        self,
+        mock_getchar: MagicMock,
+        mock_recorder_cls: MagicMock,
+        cli_runner: CliRunner,
+    ) -> None:
+        _create_identity(cli_runner)
+        result = cli_runner.invoke(
+            cli,
+            [
+                "enroll", "alice",
+                "--styles", "phonetic",
+                "--skip-consent",
+            ],
+        )
+        assert result.exit_code != 0
+        assert "No existing consent" in result.output
