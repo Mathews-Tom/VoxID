@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import soundfile as sf  # type: ignore[import-untyped]
+import soundfile as sf
 
 from .adapters import TTSEngineAdapter, _registry
 from .adapters.protocol import EngineCapabilities
@@ -543,3 +543,17 @@ class VoxID:
             "tier": decision.tier,
             "scores": decision.scores,
         }
+
+    def enroll(
+        self,
+        identity_id: str,
+        styles: list[str],
+        prompts_per_style: int = 5,
+    ) -> Any:
+        """Create an enrollment session. Used by CLI and API."""
+        from voxid.enrollment import EnrollmentPipeline
+
+        pipeline = EnrollmentPipeline(self)
+        return pipeline.create_session(
+            identity_id, styles, prompts_per_style,
+        )
