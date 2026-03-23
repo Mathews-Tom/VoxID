@@ -39,6 +39,20 @@ VoxID/
 │   ├── archive.py               # .voxid archive export/import
 │   ├── cli.py                   # Click CLI
 │   │
+│   ├── enrollment/             # Scripted enrollment pipeline
+│   │   ├── __init__.py         # EnrollmentPipeline orchestrator + exports
+│   │   ├── phoneme_tracker.py  # CMUdict phoneme lookup + coverage tracking
+│   │   ├── script_generator.py # Greedy phoneme-coverage prompt selection
+│   │   ├── quality_gate.py     # 6-gate audio quality validation (SNR, RMS, peak, duration, speech ratio, sample rate)
+│   │   ├── preprocessor.py     # Audio preprocessing (mono, resample, trim, LUFS normalize)
+│   │   ├── session.py          # Enrollment session state machine + persistence
+│   │   ├── recorder.py         # Callback-based audio recorder + energy VAD + save_recording
+│   │   ├── cli_ui.py           # Terminal display helpers (VU meter, prompts, quality feedback)
+│   │   ├── consent.py          # Consent recording, SHA-256 hashing, legal compliance
+│   │   ├── vad.py              # Multi-backend VAD (Silero/WebRTC/energy fallback)
+│   │   ├── health.py           # Re-enrollment health check (age + drift)
+│   │   └── prompts/            # Bundled JSON corpora (5 styles, 310 sentences)
+│   │
 │   ├── adapters/                # TTS engine adapters
 │   │   ├── __init__.py          # Registry, discovery, @register_adapter
 │   │   ├── protocol.py          # TTSEngineAdapter protocol + EngineCapabilities
@@ -79,7 +93,8 @@ VoxID/
 │   │       ├── identities.py    # CRUD for identities + styles
 │   │       ├── generate.py      # Generation endpoints + SSE streaming
 │   │       ├── route.py         # Routing dry-run
-│   │       └── health.py        # Health check
+│   │       ├── health.py        # Health check
+│   │       └── enroll.py       # Enrollment session endpoints
 │   │
 │   ├── video/                   # Video pipeline integration
 │   │   ├── __init__.py
@@ -95,7 +110,7 @@ VoxID/
 │           ├── backend.py       # VoxIDBackend adapter for VoiceBox
 │           └── sync.py          # Bidirectional profile sync
 │
-├── tests/                       # Test suite (372 tests)
+├── tests/                       # Test suite (~609 tests)
 │   ├── conftest.py              # Shared fixtures
 │   ├── test_core.py             # (via test_dispatcher.py, test_engines.py)
 │   ├── test_adapters.py
@@ -104,7 +119,18 @@ VoxID/
 │   ├── test_security_*.py       # Audit, consent, drift, watermark
 │   ├── test_api*.py             # API, auth, rate limiting
 │   ├── test_video_*.py          # FFmpeg, Manim, Remotion, timing
-│   └── test_voicebox_*.py       # VoiceBox backend, models, sync
+│   ├── test_voicebox_*.py       # VoiceBox backend, models, sync
+│   ├── test_phoneme_tracker.py     # Phoneme lookup + tracker
+│   ├── test_script_generator.py    # Greedy prompt selection
+│   ├── test_quality_gate.py        # Quality validation
+│   ├── test_preprocessor.py        # Audio preprocessing
+│   ├── test_enrollment_session.py  # Session state machine + store
+│   ├── test_recorder.py            # Audio recorder + VAD + save
+│   ├── test_cli_enroll.py          # CLI enroll command + import mode
+│   ├── test_enrollment_consent.py  # Consent recording
+│   ├── test_api_enroll.py          # REST API enrollment endpoints
+│   ├── test_enrollment_integration.py # End-to-end pipeline
+│   ├── test_vad.py                 # VAD backend abstraction
 │
 ├── docs/
 │   ├── usage.md                 # User-facing usage guide
@@ -327,6 +353,10 @@ Configuration is in `pyproject.toml`:
 | `fastapi`           | REST API framework                            |
 | `uvicorn`           | ASGI server                                   |
 | `sse-starlette`     | Server-Sent Events for streaming              |
+| `cmudict`           | CMU Pronouncing Dictionary for phoneme lookup |
+| `pyloudnorm`        | ITU-R BS.1770-4 LUFS loudness normalization   |
+| `sounddevice`       | Audio input capture for enrollment recording  |
+| `python-multipart`  | Multipart file upload for enrollment API      |
 
 ### Optional (per engine)
 
@@ -371,6 +401,17 @@ These extras are mutually exclusive (configured in `pyproject.toml` `[tool.uv.co
 4. Update `ArchiveExporter` / `ArchiveImporter` in `archive.py`
 5. Verify all roundtrip tests pass
 
+### Enrollment Pipeline
+
+The enrollment subsystem (`src/voxid/enrollment/`) provides guided voice enrollment with phonetically balanced prompts, real-time quality validation, and multi-sample fusion. Key components:
+
+- **PhonemeTracker** — tracks ARPAbet phoneme coverage across recordings using CMUdict
+- **ScriptGenerator** — greedy weighted selection of prompts maximizing phoneme coverage (nasals/affricates 1.5x, vowels 1.2x)
+- **QualityGate** — 6-gate validation: duration (3-60s), SNR (≥25 dB), speech ratio (≥60%), RMS (-40 to -3 dBFS), peak (≤-1 dBFS), sample rate (≥24 kHz)
+- **AudioPreprocessor** — mono → resample → trim silence → LUFS normalize (-16 LUFS). No noise suppression by design
+- **EnrollmentSession** — cursor-based state machine over styles × prompts with JSON persistence
+- **EnrollmentPipeline** — facade orchestrating all components, used by CLI, REST API, and `VoxID.enroll()`
+
 ## Commit Conventions
 
 This project uses [Conventional Commits](https://www.conventionalcommits.org/):
@@ -383,4 +424,4 @@ test: add or update tests
 docs: documentation changes
 ```
 
-Required scopes for `feat` and `fix`: `core`, `api`, `adapters`, `router`, `segments`, `security`, `store`, `cli`, `video`.
+Required scopes for `feat` and `fix`: `core`, `api`, `adapters`, `router`, `segments`, `security`, `store`, `cli`, `video`, `enrollment`.

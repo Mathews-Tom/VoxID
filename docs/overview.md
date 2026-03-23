@@ -86,6 +86,8 @@ The adapter layer is the dispatch layer. It normalizes the interface across TTS 
 - **Engine-agnostic generation** — single API across Qwen3-TTS, Fish Speech, CosyVoice2, IndexTTS-2, Chatterbox
 - **Prosodic boundary segmentation** — segment-level routing for long-form text using boundary detection, not paragraph splits
 - **Style vector interpolation** — StyleTTS 2 convex combination for smooth register transitions between adjacent segments
+- **Scripted voice enrollment** — guided recording with phonetically balanced prompts (greedy phoneme-coverage selection), real-time quality validation (6-gate: SNR, duration, speech ratio, RMS, peak, sample rate), adaptive prompt selection, and multi-sample fusion
+- **Enrollment health monitoring** — age-based (3-year threshold) and drift-based re-enrollment triggers
 - **Multi-sample fusion** — H/ASP segment-averaging with attention back-end for richer embeddings from multiple reference recordings
 - **Audio stitching** — ProsodyFM-informed adaptive pause durations between stitched segments
 - **Streaming generation** — speculative style routing with streaming output for real-time applications
@@ -119,11 +121,13 @@ graph TB
         IR[Identity Registry]
         SR[Style Router]
         GD[Generation Dispatcher]
+        EP[Enrollment Pipeline]
         VPS[Voice Prompt Store\nSafeTensors + TOML]
 
         IR --> VPS
         SR --> VPS
         GD --> VPS
+        EP --> VPS
     end
 
     subgraph Engine Adapters

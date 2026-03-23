@@ -247,7 +247,73 @@ In practice, the speculative window is effectively zero for non-streaming cases.
 
 ---
 
-## 5. Multi-Sample Fusion
+## 5. Enrollment Pipeline
+
+VoxID includes a scripted enrollment pipeline that guides users through recording phonetically balanced voice samples, validates quality in real-time, and registers accepted recordings as voice styles.
+
+### 5.1 Architecture
+
+```text
+ScriptGenerator → PhonemeTracker → AudioRecorder → QualityGate → AudioPreprocessor → VoxID.add_style()
+       ↑                                                                    ↓
+   CMUdict + Corpus                                              SessionStore (JSON)
+```
+
+The pipeline is accessed through three surfaces:
+- **Python API**: `EnrollmentPipeline` facade (create_session, record_sample, finalize)
+- **CLI**: `voxid enroll` command (interactive recording + import mode)
+- **REST API**: `/enroll/sessions` endpoints (session-based upload flow)
+
+### 5.2 Phoneme Coverage
+
+Prompt selection uses a greedy weighted set-cover algorithm (Bozkurt et al., Eurospeech 2003):
+
+1. Load style-tagged sentences from bundled JSON corpora (310 sentences across 5 styles)
+2. Score each candidate by weighted marginal gain against current coverage
+3. Select the candidate with highest gain, update coverage, repeat
+
+Phoneme weights reflect speaker-identification research:
+- Nasals (/N/, /M/, /NG/): 1.5x — strongest speaker signatures
+- Affricates (/CH/, /JH/): 1.5x
+- Vowels: 1.2x — encode unique formant structure
+- All others: 1.0x
+
+Target: 100% coverage of 39 ARPAbet phonemes within 10 prompts per style.
+
+### 5.3 Quality Gates
+
+Each audio sample is validated against six gates before acceptance:
+
+| Gate | Threshold | Action |
+|------|-----------|--------|
+| Duration | 3s min, 60s max | Hard reject |
+| SNR | ≥25 dB reject, <40 dB warn | Reject / warn |
+| Speech ratio | ≥60% of total duration | Hard reject |
+| RMS level | -40 to -3 dBFS | Hard reject |
+| Peak level | ≤-1 dBFS | Clipping reject |
+| Sample rate | ≥24 kHz | Hard reject |
+
+SNR estimation uses the first 0.5s of audio as noise floor reference. Speech ratio is computed via energy-based VAD (30ms frames, -40 dB threshold), with optional Silero/WebRTC backends.
+
+### 5.4 Audio Preprocessing
+
+Accepted samples pass through: mono conversion → resampling to 24 kHz → RMS-based silence trimming (200ms padding) → LUFS loudness normalization (-16 LUFS via ITU-R BS.1770-4). No noise suppression — per Wildspoof 2026 findings, enhancement degrades speaker similarity.
+
+### 5.5 Session Management
+
+Enrollment sessions are cursor-based state machines over a 2D grid of (styles × prompts). Sessions persist as JSON for resumability after interruption. Terminal states (COMPLETE, ABANDONED) are absorbing. The `best_sample_for_style` selector picks the accepted sample with highest SNR for style registration.
+
+### 5.6 Consent
+
+Consent recording is the first step in enrollment. The speaker reads a personalized consent statement aloud. The audio is saved alongside the identity with a SHA-256 file hash in `consent.json` for tamper verification.
+
+### 5.7 Re-enrollment Health
+
+`check_enrollment_health()` assesses whether enrollment should be refreshed based on age (>3 years) and voice drift detection (cosine similarity below threshold across enrolled styles).
+
+---
+
+## 6. Multi-Sample Fusion (Enrollment)
 
 When multiple enrollment clips are provided, VoxID fuses them into a unified reference. Fusion operates at the **audio level**, not the embedding level — this keeps the fusion pipeline engine-agnostic.
 
@@ -295,7 +361,7 @@ Decision matrix: if Attention fusion does not exceed H/ASP by more than 2% LCC o
 
 ---
 
-## 6. Engine Adapter Layer
+## 7. Engine Adapter Layer
 
 ### 6.1 Adapter Protocol
 
@@ -354,7 +420,7 @@ Pause durations between segments are informed by ProsodyFM predictions rather th
 
 ---
 
-## 7. Streaming Architecture
+## 8. Streaming Architecture
 
 ### 7.1 Streaming Generation
 
@@ -385,7 +451,7 @@ Word timings are stored as a list of `(word, start_ms, end_ms)` tuples in the `G
 
 ---
 
-## 8. Video Skill Integration
+## 9. Video Skill Integration
 
 ### 8.1 SceneManifest Schema
 
@@ -483,7 +549,7 @@ Remotion's frame-accurate model maps directly to VoxID's output:
 
 ---
 
-## 9. Security Architecture
+## 10. Security Architecture
 
 ### 9.1 Serialization Security
 
@@ -527,7 +593,7 @@ Versioning policy:
 
 ---
 
-## 10. Public API Surface
+## 11. Public API Surface
 
 ### 10.1 Python Library
 
@@ -591,7 +657,7 @@ The CLI is built on Click and available as the `voxid` command.
 
 ---
 
-## 11. Technical Decisions
+## 12. Technical Decisions
 
 | Decision             | Choice                          | Rationale                                                                             |
 | -------------------- | ------------------------------- | ------------------------------------------------------------------------------------- |
@@ -614,7 +680,7 @@ The CLI is built on Click and available as the `voxid` command.
 
 ---
 
-## 12. Dependency Graph
+## 13. Dependency Graph
 
 ```mermaid
 graph TD
@@ -673,7 +739,7 @@ Engine adapter packages are optional dependencies installed per engine: `pip ins
 
 ---
 
-## 13. References
+## 14. References
 
 ### Embedding Fusion
 

@@ -12,7 +12,9 @@ VoxID sits between your application and TTS engines. It introduces **voice ident
 - **Segment-level routing** — long-form text is split at prosodic boundaries, each segment routed independently with smoothing to prevent style thrashing
 - **Portable `.voxid` archives** — HMAC-signed archives with consent records for identity transfer and backup
 - **AudioSeal watermarking** — provenance tracking embedded in generated audio (optional, requires `audioseal`)
+- **Scripted voice enrollment** — guided recording with phonetically balanced prompts, real-time quality feedback, adaptive phoneme coverage tracking, and multi-sample fusion
 - **Voice drift detection** — cosine similarity monitoring against enrollment baseline with re-enrollment recommendations
+- **Re-enrollment health checks** — age-based and drift-based triggers for enrollment refresh
 - **Video pipeline integration** — SceneManifest contract for Manim and Remotion with word-level timing
 - **Prompt-as-cache architecture** — engine-specific prompts are a derived cache; switching engines rebuilds the cache, not the enrollment
 
@@ -73,6 +75,9 @@ vox.add_style(
     ref_text="This is how I normally speak in conversation.",
 )
 
+# Or enroll with guided prompts (creates session + generates prompts)
+session = vox.enroll("alice", ["conversational", "technical"])
+
 # Generate — style is auto-routed from text content
 audio_path, sr = vox.generate(
     text="Let me walk you through how this works.",
@@ -93,6 +98,12 @@ voxid style add alice conversational \
     --audio samples/alice_casual.wav \
     --transcript "This is how I normally speak." \
     --description "Warm, relaxed, natural pacing"
+
+# Enroll with guided recording (interactive)
+voxid enroll alice --styles conversational,technical
+
+# Enroll from pre-recorded audio (non-interactive)
+voxid enroll alice --styles conversational --import-audio ./recordings/
 
 # Generate audio
 voxid generate "Hello, welcome to the demo." --identity alice
@@ -137,6 +148,15 @@ curl -X POST http://localhost:8765/generate \
 curl -X POST http://localhost:8765/route \
   -H "Content-Type: application/json" \
   -d '{"text": "The gradient exploded during training.", "identity_id": "alice"}'
+
+# Create enrollment session
+curl -X POST http://localhost:8765/enroll/sessions \
+  -H "Content-Type: application/json" \
+  -d '{"identity_id": "alice", "styles": ["conversational"], "prompts_per_style": 5}'
+
+# Upload audio sample
+curl -X POST http://localhost:8765/enroll/sessions/{id}/samples \
+  -F "file=@recording.wav"
 ```
 
 Set `VOXID_API_KEY` to enable API key authentication. Set `VOXID_RATE_LIMIT` and `VOXID_RATE_WINDOW` to configure rate limiting on generation endpoints.
@@ -163,9 +183,10 @@ docker run -p 8765:8765 -v ~/.voxid:/data/voxid voxid
 │  │  Registry    │ │   Router    │ │   Dispatcher     │  │
 │  └──────┬───────┘ └──────┬──────┘ └────────┬─────────┘  │
 │         │                │                 │            │
-│  ┌──────▼────────────────▼─────────────────▼─────────┐  │
-│  │          Voice Prompt Store (TOML + SafeTensors)  │  │
-│  └───────────────────────────────────────────────────┘  │
+│  ┌──────▼──────────┐ ┌───▼─────────────────▼─────────┐  │
+│  │   Enrollment    │ │  Voice Prompt Store           │  │
+│  │   Pipeline      │ │  (TOML + SafeTensors)         │  │
+│  └─────────────────┘ └───────────────────────────────┘  │
 └──────────────────────────┬──────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────┐
@@ -183,6 +204,7 @@ docker run -p 8765:8765 -v ~/.voxid:/data/voxid voxid
 │   └── alice/
 │       ├── identity.toml
 │       ├── consent.json
+│       ├── consent_audio.wav              # recorded consent (enrollment)
 │       └── styles/
 │           └── conversational/
 │               ├── style.toml
@@ -191,6 +213,8 @@ docker run -p 8765:8765 -v ~/.voxid:/data/voxid voxid
 │               └── prompts/               # derived cache
 │                   ├── qwen3-tts.safetensors
 │                   └── fish-speech.safetensors
+├── enrollment_sessions/                   # resumable enrollment state
+│   └── {session_id}.json
 ├── cache/
 │   └── router/
 │       └── router_cache.db
