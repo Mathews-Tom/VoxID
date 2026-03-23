@@ -202,9 +202,8 @@ class ArchiveImporter:
             consent = ConsentRecord.from_dict(consent_data)
             identity = Identity.from_toml(identity_data, consent)
 
-            # Validate imported consent (advisory — does not block import)
-            consent_check = check_import_consent(consent)
-            _ = consent_check  # warnings available for callers if needed
+            # Advisory consent validation — does not block import
+            check_import_consent(consent)
 
             # Create identity in store
             self._store.create_identity(identity)

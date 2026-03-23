@@ -80,8 +80,8 @@ def discover_adapters() -> None:
     ]:
         try:
             importlib.import_module(module_name)
-        except Exception:
-            pass  # Adapter registration is best-effort
+        except ImportError:
+            pass  # Optional dependency not installed
 
 
 __all__ = [

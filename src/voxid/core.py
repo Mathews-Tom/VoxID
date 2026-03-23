@@ -9,6 +9,7 @@ import numpy as np
 import soundfile as sf  # type: ignore[import-untyped]
 
 from .adapters import TTSEngineAdapter, _registry
+from .adapters.protocol import EngineCapabilities
 from .config import VoxIDConfig, load_config
 from .models import ConsentRecord, Identity, Style
 from .router import StyleRouter
@@ -74,36 +75,29 @@ class VoxID:
         2. Engine matching language requirement
         3. Engine matching streaming/emotion need
         """
-        from .adapters import _registry, discover_adapters
-
-        discover_adapters()
-
+        lang_code = language.split("-")[0]
         default = self._config.default_engine
-        # Check if default supports the language
+
+        def _matches(caps: EngineCapabilities) -> bool:
+            if lang_code not in caps.supported_languages:
+                return False
+            if need_streaming and not caps.supports_streaming:
+                return False
+            if need_emotion and not caps.supports_emotion_control:
+                return False
+            return True
+
+        # Check if default supports requirements
         if default in _registry:
-            adapter_cls = _registry[default]
-            instance = adapter_cls()
-            caps = instance.capabilities
-            lang_code = language.split("-")[0]
-            if lang_code in caps.supported_languages:
-                if not need_streaming or caps.supports_streaming:
-                    if not need_emotion or caps.supports_emotion_control:
-                        return default
+            caps = _registry[default]().capabilities
+            if _matches(caps):
+                return default
 
         # Scan all registered adapters for best match
         for name, cls in _registry.items():
-            instance = cls()
-            caps = instance.capabilities
-            lang_code = language.split("-")[0]
-            if lang_code not in caps.supported_languages:
-                continue
-            if need_streaming and not caps.supports_streaming:
-                continue
-            if need_emotion and not caps.supports_emotion_control:
-                continue
-            return name
+            if _matches(cls().capabilities):
+                return name
 
-        # Fallback to default
         return default
 
     def create_identity(
@@ -260,7 +254,7 @@ class VoxID:
         if not available_styles:
             available_styles = [identity.default_style]
 
-        _segments, plan = build_segment_plan(
+        _, plan = build_segment_plan(
             text=text,
             router=self._router,
             available_styles=available_styles,
