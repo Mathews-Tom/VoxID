@@ -557,3 +557,11 @@ class VoxID:
         return pipeline.create_session(
             identity_id, styles, prompts_per_style,
         )
+
+    def check_enrollment_health(
+        self, identity_id: str,
+    ) -> Any:
+        """Assess whether an identity's enrollment should be refreshed."""
+        from voxid.enrollment.health import check_enrollment_health
+
+        return check_enrollment_health(self, identity_id)
