@@ -9,6 +9,12 @@ from .phoneme_tracker import (
 )
 from .preprocessor import AudioPreprocessor
 from .quality_gate import QualityConfig, QualityGate, QualityReport, estimate_snr
+from .recorder import (
+    AudioRecorder,
+    RecordingMetrics,
+    detect_speech_energy,
+    save_recording,
+)
 from .script_generator import EnrollmentPrompt, ScriptGenerator
 from .session import (
     EnrollmentSample,
@@ -20,6 +26,7 @@ from .session import (
 __all__ = [
     "ALL_PHONEMES",
     "AudioPreprocessor",
+    "AudioRecorder",
     "EnrollmentPrompt",
     "EnrollmentSample",
     "EnrollmentSession",
@@ -28,10 +35,13 @@ __all__ = [
     "QualityConfig",
     "QualityGate",
     "QualityReport",
+    "RecordingMetrics",
     "ScriptGenerator",
     "SessionStatus",
     "SessionStore",
+    "detect_speech_energy",
     "estimate_snr",
     "load_cmudict",
+    "save_recording",
     "text_to_phonemes",
 ]
