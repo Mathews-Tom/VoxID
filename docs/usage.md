@@ -319,6 +319,7 @@ voxid enroll alice --styles conversational --device "Built-in Microphone"
 ```
 
 The enrollment flow:
+
 1. Records consent audio (first time only)
 2. Displays phonetically balanced prompts one at a time
 3. Records audio, validates against quality gates (SNR, duration, speech ratio, RMS, peak, sample rate)
@@ -327,6 +328,7 @@ The enrollment flow:
 6. Registers styles via `add_style()`
 
 Import mode (`--import-audio`):
+
 - Discovers WAV/MP3 files, matches to styles by filename stem
 - Validates each file against the same quality gates
 - Reads transcript from `.txt` sidecar files (e.g., `conversational.txt`)
@@ -399,27 +401,27 @@ voxid serve --reload
 
 ### Endpoints
 
-| Method   | Path                      | Description                |
-| -------- | ------------------------- | -------------------------- |
-| `POST`   | `/identities`             | Create identity            |
-| `GET`    | `/identities`             | List identities            |
-| `GET`    | `/identities/{id}`        | Get identity               |
-| `DELETE` | `/identities/{id}`        | Delete identity            |
-| `POST`   | `/identities/{id}/styles` | Add style                  |
-| `GET`    | `/identities/{id}/styles` | List styles                |
-| `POST`   | `/generate`               | Single-shot generation     |
-| `POST`   | `/generate/segments`      | Segment generation         |
-| `POST`   | `/generate/manifest`      | Manifest-driven generation |
-| `POST`   | `/generate/stream`        | SSE streaming generation   |
-| `POST`   | `/route`                  | Route without generating   |
-| `GET`    | `/health`                 | Health check               |
-| `POST`   | `/enroll/sessions`                | Create enrollment session  |
-| `GET`    | `/enroll/sessions/{id}`           | Get session status         |
-| `POST`   | `/enroll/sessions/{id}/samples`   | Upload audio sample        |
-| `POST`   | `/enroll/sessions/{id}/complete`  | Finalize enrollment        |
-| `DELETE` | `/enroll/sessions/{id}`           | Abandon session            |
-| `GET`    | `/enroll/prompts`                 | Get prompts for style      |
-| `GET`    | `/enroll/prompts/next`            | Adaptive prompt            |
+| Method   | Path                             | Description                |
+| -------- | -------------------------------- | -------------------------- |
+| `POST`   | `/identities`                    | Create identity            |
+| `GET`    | `/identities`                    | List identities            |
+| `GET`    | `/identities/{id}`               | Get identity               |
+| `DELETE` | `/identities/{id}`               | Delete identity            |
+| `POST`   | `/identities/{id}/styles`        | Add style                  |
+| `GET`    | `/identities/{id}/styles`        | List styles                |
+| `POST`   | `/generate`                      | Single-shot generation     |
+| `POST`   | `/generate/segments`             | Segment generation         |
+| `POST`   | `/generate/manifest`             | Manifest-driven generation |
+| `POST`   | `/generate/stream`               | SSE streaming generation   |
+| `POST`   | `/route`                         | Route without generating   |
+| `GET`    | `/health`                        | Health check               |
+| `POST`   | `/enroll/sessions`               | Create enrollment session  |
+| `GET`    | `/enroll/sessions/{id}`          | Get session status         |
+| `POST`   | `/enroll/sessions/{id}/samples`  | Upload audio sample        |
+| `POST`   | `/enroll/sessions/{id}/complete` | Finalize enrollment        |
+| `DELETE` | `/enroll/sessions/{id}`          | Abandon session            |
+| `GET`    | `/enroll/prompts`                | Get prompts for style      |
+| `GET`    | `/enroll/prompts/next`           | Adaptive prompt            |
 
 ### Authentication
 

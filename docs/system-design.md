@@ -132,7 +132,7 @@ Custom styles are registered identically to base styles. The router uses the `de
 
 All identity data is stored under `~/.voxid/`. The layout is:
 
-```
+```text
 ~/.voxid/
 ├── config.toml
 ├── identities/
@@ -260,6 +260,7 @@ ScriptGenerator → PhonemeTracker → AudioRecorder → QualityGate → AudioPr
 ```
 
 The pipeline is accessed through three surfaces:
+
 - **Python API**: `EnrollmentPipeline` facade (create_session, record_sample, finalize)
 - **CLI**: `voxid enroll` command (interactive recording + import mode)
 - **REST API**: `/enroll/sessions` endpoints (session-based upload flow)
@@ -273,6 +274,7 @@ Prompt selection uses a greedy weighted set-cover algorithm (Bozkurt et al., Eur
 3. Select the candidate with highest gain, update coverage, repeat
 
 Phoneme weights reflect speaker-identification research:
+
 - Nasals (/N/, /M/, /NG/): 1.5x — strongest speaker signatures
 - Affricates (/CH/, /JH/): 1.5x
 - Vowels: 1.2x — encode unique formant structure
@@ -284,14 +286,14 @@ Target: 100% coverage of 39 ARPAbet phonemes within 10 prompts per style.
 
 Each audio sample is validated against six gates before acceptance:
 
-| Gate | Threshold | Action |
-|------|-----------|--------|
-| Duration | 3s min, 60s max | Hard reject |
-| SNR | ≥25 dB reject, <40 dB warn | Reject / warn |
-| Speech ratio | ≥60% of total duration | Hard reject |
-| RMS level | -40 to -3 dBFS | Hard reject |
-| Peak level | ≤-1 dBFS | Clipping reject |
-| Sample rate | ≥24 kHz | Hard reject |
+| Gate         | Threshold                  | Action          |
+| ------------ | -------------------------- | --------------- |
+| Duration     | 3s min, 60s max            | Hard reject     |
+| SNR          | ≥25 dB reject, <40 dB warn | Reject / warn   |
+| Speech ratio | ≥60% of total duration     | Hard reject     |
+| RMS level    | -40 to -3 dBFS             | Hard reject     |
+| Peak level   | ≤-1 dBFS                   | Clipping reject |
+| Sample rate  | ≥24 kHz                    | Hard reject     |
 
 SNR estimation uses the first 0.5s of audio as noise floor reference. Speech ratio is computed via energy-based VAD (30ms frames, -40 dB threshold), with optional Silero/WebRTC backends.
 
