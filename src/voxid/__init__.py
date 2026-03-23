@@ -18,6 +18,15 @@ from .plugins.voicebox import (
 )
 from .router import RouteDecision, StyleRouter
 from .schemas import GeneratedScene, GenerationResult, SceneManifest, SceneNarration
+from .security import (
+    AuditReport,
+    ConsentValidationResult,
+    DriftReport,
+    WatermarkResult,
+    check_drift,
+    check_export_consent,
+    scan_source,
+)
 from .segments import (
     SegmentGenerationResult,
     SegmentPlanItem,
@@ -71,6 +80,14 @@ __all__ = [
     # archive
     "ArchiveExporter",
     "ArchiveImporter",
+    # security
+    "AuditReport",
+    "ConsentValidationResult",
+    "DriftReport",
+    "WatermarkResult",
+    "check_drift",
+    "check_export_consent",
+    "scan_source",
     # versioning
     "EmbeddingVersion",
     "VersionTracker",
