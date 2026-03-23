@@ -16,6 +16,7 @@ from .enrollment.cli_ui import (
     display_session_header,
     display_session_summary,
 )
+from .enrollment.consent import ConsentManager
 from .enrollment.preprocessor import AudioPreprocessor
 from .enrollment.quality_gate import QualityGate
 from .enrollment.recorder import AudioRecorder, save_recording
@@ -453,6 +454,12 @@ def serve(host: str, port: int, reload: bool) -> None:
     default=None,
     help="Import pre-recorded audio instead of recording.",
 )
+@click.option(
+    "--skip-consent",
+    is_flag=True,
+    default=False,
+    help="Skip consent recording if valid consent already exists.",
+)
 def enroll(
     identity_id: str,
     styles: str,
@@ -460,6 +467,7 @@ def enroll(
     resume: str | None,
     device: str | None,
     import_audio: str | None,
+    skip_consent: bool,
 ) -> None:
     """Enroll a voice identity with guided recording or audio import."""
     vox = VoxID()
@@ -477,6 +485,7 @@ def enroll(
     generator = ScriptGenerator()
     gate = QualityGate()
     preprocessor = AudioPreprocessor()
+    consent_mgr = ConsentManager(store_path)
 
     if import_audio is not None:
         _run_import_mode(
@@ -488,6 +497,16 @@ def enroll(
             preprocessor=preprocessor,
         )
         return
+
+    # Consent step (before recording)
+    _handle_consent(
+        consent_mgr=consent_mgr,
+        identity_id=identity_id,
+        identity_name=vox._store.get_identity(identity_id).name,
+        gate=gate,
+        device=device,
+        skip_consent=skip_consent,
+    )
 
     # Create or resume session
     if resume is not None:
@@ -539,6 +558,62 @@ def enroll(
 
     _register_styles(vox, session)
     display_session_summary(session)
+
+
+def _handle_consent(
+    consent_mgr: ConsentManager,
+    identity_id: str,
+    identity_name: str,
+    gate: QualityGate,
+    device: str | None,
+    skip_consent: bool,
+) -> None:
+    """Record consent audio or verify existing consent."""
+    if skip_consent:
+        if consent_mgr.verify_consent_exists(identity_id):
+            click.echo(
+                click.style("Consent verified: ", fg="green")
+                + "existing consent record found",
+            )
+            return
+        raise click.ClickException(
+            "No existing consent record. "
+            "Record consent first (remove --skip-consent)."
+        )
+
+    statement = consent_mgr.generate_statement(identity_name)
+    click.echo("")
+    click.echo(click.style("Consent Required", bold=True, fg="cyan"))
+    click.echo(f'  Please read aloud: "{statement}"')
+    click.echo("")
+    click.echo("  Press ENTER to record consent, Q to quit")
+
+    key = click.getchar()
+    if key in ("q", "Q"):
+        raise click.ClickException("Enrollment cancelled.")
+
+    recorder = AudioRecorder(device=device)
+    click.echo("  Recording consent... (press ENTER to stop)")
+    recorder.start()
+    click.getchar()
+    audio = recorder.stop()
+
+    report = gate.validate(audio, recorder.sample_rate)
+    display_quality_result(report)
+
+    if not report.passed:
+        raise click.ClickException(
+            "Consent recording failed quality check. "
+            "Re-run enrollment to try again."
+        )
+
+    consent_mgr.record_consent(
+        identity_id=identity_id,
+        audio=audio,
+        sr=recorder.sample_rate,
+        scope="text-to-speech generation",
+    )
+    click.echo(click.style("  Consent recorded.", fg="green"))
 
 
 def _run_recording_loop(
