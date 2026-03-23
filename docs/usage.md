@@ -333,20 +333,20 @@ voxid serve --reload
 
 ### Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/identities` | Create identity |
-| `GET` | `/identities` | List identities |
-| `GET` | `/identities/{id}` | Get identity |
-| `DELETE` | `/identities/{id}` | Delete identity |
-| `POST` | `/identities/{id}/styles` | Add style |
-| `GET` | `/identities/{id}/styles` | List styles |
-| `POST` | `/generate` | Single-shot generation |
-| `POST` | `/generate/segments` | Segment generation |
-| `POST` | `/generate/manifest` | Manifest-driven generation |
-| `POST` | `/generate/stream` | SSE streaming generation |
-| `POST` | `/route` | Route without generating |
-| `GET` | `/health` | Health check |
+| Method   | Path                      | Description                |
+| -------- | ------------------------- | -------------------------- |
+| `POST`   | `/identities`             | Create identity            |
+| `GET`    | `/identities`             | List identities            |
+| `GET`    | `/identities/{id}`        | Get identity               |
+| `DELETE` | `/identities/{id}`        | Delete identity            |
+| `POST`   | `/identities/{id}/styles` | Add style                  |
+| `GET`    | `/identities/{id}/styles` | List styles                |
+| `POST`   | `/generate`               | Single-shot generation     |
+| `POST`   | `/generate/segments`      | Segment generation         |
+| `POST`   | `/generate/manifest`      | Manifest-driven generation |
+| `POST`   | `/generate/stream`        | SSE streaming generation   |
+| `POST`   | `/route`                  | Route without generating   |
+| `GET`    | `/health`                 | Health check               |
 
 ### Authentication
 
@@ -487,17 +487,17 @@ The SceneManifest JSON format for video pipeline integration:
 }
 ```
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `identity_id` | Yes | Target voice identity |
-| `engine` | No | Engine override for all scenes (default: per-style) |
-| `scenes` | Yes | Ordered list of narration units |
-| `scenes[].scene_id` | Yes | Unique ID within manifest |
-| `scenes[].text` | Yes | Text to synthesize |
-| `scenes[].style` | No | Explicit style; `null` enables auto-routing |
-| `scenes[].duration_hint` | No | Advisory target duration in seconds (not enforced) |
-| `scenes[].language` | No | BCP-47 override (default: style's language) |
-| `metadata` | No | Pass-through dict; `metadata.id` used as manifest ID |
+| Field                    | Required | Description                                          |
+| ------------------------ | -------- | ---------------------------------------------------- |
+| `identity_id`            | Yes      | Target voice identity                                |
+| `engine`                 | No       | Engine override for all scenes (default: per-style)  |
+| `scenes`                 | Yes      | Ordered list of narration units                      |
+| `scenes[].scene_id`      | Yes      | Unique ID within manifest                            |
+| `scenes[].text`          | Yes      | Text to synthesize                                   |
+| `scenes[].style`         | No       | Explicit style; `null` enables auto-routing          |
+| `scenes[].duration_hint` | No       | Advisory target duration in seconds (not enforced)   |
+| `scenes[].language`      | No       | BCP-47 override (default: style's language)          |
+| `metadata`               | No       | Pass-through dict; `metadata.id` used as manifest ID |
 
 ---
 
