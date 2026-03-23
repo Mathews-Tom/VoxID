@@ -28,23 +28,14 @@ class VoicePromptStore:
     def _prompts_dir(self, identity_id: str, style_id: str) -> Path:
         return self._style_dir(identity_id, style_id) / "prompts"
 
-    def _atomic_write_text(self, path: Path, content: str) -> None:
-        """Write text to path atomically via a temp file in the same directory."""
+    def _atomic_write(self, path: Path, content: str | bytes) -> None:
+        """Write content to path atomically via a temp file in the same directory."""
         path.parent.mkdir(parents=True, exist_ok=True)
+        mode = "w" if isinstance(content, str) else "wb"
+        kwargs = {"encoding": "utf-8"} if mode == "w" else {}
         fd, tmp = tempfile.mkstemp(dir=path.parent)
         try:
-            with open(fd, "w", encoding="utf-8") as f:
-                f.write(content)
-            Path(tmp).replace(path)
-        except Exception:
-            Path(tmp).unlink(missing_ok=True)
-            raise
-
-    def _atomic_write_bytes(self, path: Path, content: bytes) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=path.parent)
-        try:
-            with open(fd, "wb") as f:
+            with open(fd, mode, **kwargs) as f:  # type: ignore[call-overload]
                 f.write(content)
             Path(tmp).replace(path)
         except Exception:
@@ -61,8 +52,8 @@ class VoicePromptStore:
 
         toml_data = identity.to_toml()
         toml_bytes = tomli_w.dumps(toml_data).encode()
-        self._atomic_write_bytes(idir / "identity.toml", toml_bytes)
-        self._atomic_write_text(
+        self._atomic_write(idir / "identity.toml", toml_bytes)
+        self._atomic_write(
             idir / "consent.json",
             json.dumps(identity.consent_record.to_dict(), indent=2),
         )
@@ -135,10 +126,10 @@ class VoicePromptStore:
             language=style.language,
             metadata=style.metadata,
         )
-        self._atomic_write_bytes(
+        self._atomic_write(
             sdir / "style.toml", tomli_w.dumps(persisted_style.to_toml()).encode()
         )
-        self._atomic_write_text(sdir / "ref_text.txt", style.ref_text)
+        self._atomic_write(sdir / "ref_text.txt", style.ref_text)
 
         prompts_dir = sdir / "prompts"
         prompts_dir.mkdir(exist_ok=True)
