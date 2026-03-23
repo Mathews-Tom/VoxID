@@ -78,6 +78,40 @@ vox._store.invalidate_prompt_cache("alice", "conversational", "fish-speech")
 vox._ensure_prompt("alice", "conversational", "fish-speech")
 ```
 
+### Enrollment
+
+```python
+from voxid import VoxID
+from voxid.enrollment import EnrollmentPipeline
+
+vox = VoxID()
+
+# Create an enrollment session with phonetically optimized prompts
+pipeline = EnrollmentPipeline(vox)
+session = pipeline.create_session(
+    identity_id="alice",
+    styles=["conversational", "technical"],
+    prompts_per_style=5,
+)
+
+# Record a sample (audio from microphone or file)
+import numpy as np
+import soundfile as sf
+audio, sr = sf.read("recording.wav")
+sample, report = pipeline.record_sample(session, np.asarray(audio), sr)
+# report.passed, report.snr_db, report.rejection_reasons
+
+# Finalize — selects best sample per style, registers via add_style()
+styles = pipeline.finalize(session)
+
+# Convenience method
+session = vox.enroll("alice", ["conversational", "technical"])
+
+# Check enrollment health (age + drift)
+health = vox.check_enrollment_health("alice")
+# health.re_enrollment_recommended, health.reasons
+```
+
 ### Generation
 
 ```python
@@ -265,6 +299,40 @@ voxid style list alice
 voxid style rebuild alice conversational --engine cosyvoice2
 ```
 
+### Enrollment Commands
+
+```bash
+# Interactive enrollment with guided recording
+voxid enroll alice --styles conversational,technical --prompts-per-style 5
+
+# Import pre-recorded audio (non-interactive)
+voxid enroll alice --styles conversational --import-audio ./recordings/
+
+# Resume an interrupted session
+voxid enroll alice --styles conversational --resume abc12345
+
+# Skip consent for re-enrollment
+voxid enroll alice --styles conversational --skip-consent
+
+# Specify audio input device
+voxid enroll alice --styles conversational --device "Built-in Microphone"
+```
+
+The enrollment flow:
+
+1. Records consent audio (first time only)
+2. Displays phonetically balanced prompts one at a time
+3. Records audio, validates against quality gates (SNR, duration, speech ratio, RMS, peak, sample rate)
+4. Tracks phoneme coverage across recordings
+5. Selects best sample per style by SNR
+6. Registers styles via `add_style()`
+
+Import mode (`--import-audio`):
+
+- Discovers WAV/MP3 files, matches to styles by filename stem
+- Validates each file against the same quality gates
+- Reads transcript from `.txt` sidecar files (e.g., `conversational.txt`)
+
 ### Generation Commands
 
 ```bash
@@ -333,20 +401,27 @@ voxid serve --reload
 
 ### Endpoints
 
-| Method   | Path                      | Description                |
-| -------- | ------------------------- | -------------------------- |
-| `POST`   | `/identities`             | Create identity            |
-| `GET`    | `/identities`             | List identities            |
-| `GET`    | `/identities/{id}`        | Get identity               |
-| `DELETE` | `/identities/{id}`        | Delete identity            |
-| `POST`   | `/identities/{id}/styles` | Add style                  |
-| `GET`    | `/identities/{id}/styles` | List styles                |
-| `POST`   | `/generate`               | Single-shot generation     |
-| `POST`   | `/generate/segments`      | Segment generation         |
-| `POST`   | `/generate/manifest`      | Manifest-driven generation |
-| `POST`   | `/generate/stream`        | SSE streaming generation   |
-| `POST`   | `/route`                  | Route without generating   |
-| `GET`    | `/health`                 | Health check               |
+| Method   | Path                             | Description                |
+| -------- | -------------------------------- | -------------------------- |
+| `POST`   | `/identities`                    | Create identity            |
+| `GET`    | `/identities`                    | List identities            |
+| `GET`    | `/identities/{id}`               | Get identity               |
+| `DELETE` | `/identities/{id}`               | Delete identity            |
+| `POST`   | `/identities/{id}/styles`        | Add style                  |
+| `GET`    | `/identities/{id}/styles`        | List styles                |
+| `POST`   | `/generate`                      | Single-shot generation     |
+| `POST`   | `/generate/segments`             | Segment generation         |
+| `POST`   | `/generate/manifest`             | Manifest-driven generation |
+| `POST`   | `/generate/stream`               | SSE streaming generation   |
+| `POST`   | `/route`                         | Route without generating   |
+| `GET`    | `/health`                        | Health check               |
+| `POST`   | `/enroll/sessions`               | Create enrollment session  |
+| `GET`    | `/enroll/sessions/{id}`          | Get session status         |
+| `POST`   | `/enroll/sessions/{id}/samples`  | Upload audio sample        |
+| `POST`   | `/enroll/sessions/{id}/complete` | Finalize enrollment        |
+| `DELETE` | `/enroll/sessions/{id}`          | Abandon session            |
+| `GET`    | `/enroll/prompts`                | Get prompts for style      |
+| `GET`    | `/enroll/prompts/next`           | Adaptive prompt            |
 
 ### Authentication
 
@@ -430,6 +505,31 @@ curl -X POST http://localhost:8765/route \
     "text": "Breaking: production database is down.",
     "identity_id": "alice"
   }'
+```
+
+**Create enrollment session:**
+
+```bash
+curl -X POST http://localhost:8765/enroll/sessions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "identity_id": "alice",
+    "styles": ["conversational", "technical"],
+    "prompts_per_style": 5
+  }'
+```
+
+**Upload audio sample:**
+
+```bash
+curl -X POST http://localhost:8765/enroll/sessions/{session_id}/samples \
+  -F "file=@recording.wav"
+```
+
+**Complete enrollment:**
+
+```bash
+curl -X POST http://localhost:8765/enroll/sessions/{session_id}/complete
 ```
 
 **SSE streaming:**
