@@ -1,9 +1,25 @@
 [project]
 name = "voxid"
-version = "0.1.0"
+version = "0.2.0"
 description = "Voice Identity Management Platform"
+readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
+authors = [
+    { name = "Tom Mathews", email = "mathews.tom@gmail.com" },
+]
+keywords = ["voice", "identity", "tts", "voice-cloning", "enrollment", "speech"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+
 dependencies = [
     "pydantic>=2.0",
     "safetensors>=0.4",
@@ -38,6 +54,12 @@ dev = [
 
 [project.scripts]
 voxid = "voxid.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/Mathews-Tom/VoxID"
+Repository = "https://github.com/Mathews-Tom/VoxID"
+Documentation = "https://github.com/Mathews-Tom/VoxID/tree/main/docs"
+Issues = "https://github.com/Mathews-Tom/VoxID/issues"
 
 [build-system]
 requires = ["hatchling"]
