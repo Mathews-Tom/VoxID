@@ -18,14 +18,14 @@ VoxID sits between your application and TTS engines. It introduces **voice ident
 
 ## Supported Engines
 
-| Engine | Slug | Streaming | Emotion Control | Languages |
-|--------|------|-----------|-----------------|-----------|
-| Qwen3-TTS | `qwen3-tts` | — | — | 10 (en, zh, ja, ko, de, fr, ru, pt, es, it) |
-| Fish Speech | `fish-speech` | Yes | — | 10 (en, zh, ja, ko, es, pt, ar, ru, fr, de) |
-| CosyVoice2 | `cosyvoice2` | Yes | — | 9 (en, zh, ja, ko, de, fr, ru, pt, es) |
-| IndexTTS-2 | `indextts2` | Yes | Yes (disentangled) | 2 (en, zh) |
-| Chatterbox | `chatterbox` | Yes | Paralinguistic tags | 22 |
-| Stub | `stub` | Yes | — | 3 (en, zh, ja) — sine wave, no model needed |
+| Engine      | Slug          | Streaming | Emotion Control     | Languages                                   |
+| ----------- | ------------- | --------- | ------------------- | ------------------------------------------- |
+| Qwen3-TTS   | `qwen3-tts`   | —         | —                   | 10 (en, zh, ja, ko, de, fr, ru, pt, es, it) |
+| Fish Speech | `fish-speech` | Yes       | —                   | 10 (en, zh, ja, ko, es, pt, ar, ru, fr, de) |
+| CosyVoice2  | `cosyvoice2`  | Yes       | —                   | 9 (en, zh, ja, ko, de, fr, ru, pt, es)      |
+| IndexTTS-2  | `indextts2`   | Yes       | Yes (disentangled)  | 2 (en, zh)                                  |
+| Chatterbox  | `chatterbox`  | Yes       | Paralinguistic tags | 22                                          |
+| Stub        | `stub`        | Yes       | —                   | 3 (en, zh, ja) — sine wave, no model needed |
 
 Engines are optional dependencies. Install only what you need:
 
@@ -150,33 +150,33 @@ docker run -p 8765:8765 -v ~/.voxid:/data/voxid voxid
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
-│                    Consumer Layer                        │
+│                    Consumer Layer                       │
 │   Python Library  │  REST API  │  CLI  │  VoiceBox      │
 └────────┬──────────┴─────┬──────┴───┬───┴───────┬────────┘
          │                │          │           │
 ┌────────▼────────────────▼──────────▼───────────▼────────┐
 │                     VoxID Core                          │
 │  ┌──────────────┐ ┌─────────────┐ ┌──────────────────┐  │
-│  │  Identity     │ │   Style     │ │   Generation     │  │
-│  │  Registry     │ │   Router    │ │   Dispatcher     │  │
+│  │  Identity    │ │   Style     │ │   Generation     │  │
+│  │  Registry    │ │   Router    │ │   Dispatcher     │  │
 │  └──────┬───────┘ └──────┬──────┘ └────────┬─────────┘  │
-│         │                │                  │            │
-│  ┌──────▼────────────────▼──────────────────▼─────────┐  │
-│  │          Voice Prompt Store (TOML + SafeTensors)   │  │
-│  └────────────────────────────────────────────────────┘  │
+│         │                │                 │            │
+│  ┌──────▼────────────────▼─────────────────▼─────────┐  │
+│  │          Voice Prompt Store (TOML + SafeTensors)  │  │
+│  └───────────────────────────────────────────────────┘  │
 └──────────────────────────┬──────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────┐
-│                   Engine Adapters                        │
-│  Qwen3-TTS │ Fish Speech │ CosyVoice2 │ IndexTTS-2 │ … │
+│                   Engine Adapters                       │
+│  Qwen3-TTS │ Fish Speech │ CosyVoice2 │ IndexTTS-2  │ … │
 └─────────────────────────────────────────────────────────┘
 ```
 
 **Storage layout:**
 
-```
+```text
 ~/.voxid/
 ├── config.toml
 ├── identities/
@@ -211,21 +211,21 @@ max_embedding_versions = 3
 
 ### Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VOXID_API_KEY` | API key for REST authentication (unset = open access) | — |
-| `VOXID_RATE_LIMIT` | Max requests per window on `/generate*` endpoints | `60` |
-| `VOXID_RATE_WINDOW` | Rate limit window in seconds | `60` |
-| `VOXID_STORE_PATH` | Override store path (used by Docker) | — |
+| Variable            | Description                                           | Default |
+| ------------------- | ----------------------------------------------------- | ------- |
+| `VOXID_API_KEY`     | API key for REST authentication (unset = open access) | —       |
+| `VOXID_RATE_LIMIT`  | Max requests per window on `/generate*` endpoints     | `60`    |
+| `VOXID_RATE_WINDOW` | Rate limit window in seconds                          | `60`    |
+| `VOXID_STORE_PATH`  | Override store path (used by Docker)                  | —       |
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Usage Guide](docs/usage.md) | CLI, Python library, REST API, segments, manifests, video integration |
-| [Developer Guide](docs/development.md) | Setup, project structure, testing, writing adapters, contributing |
-| [System Design](docs/system-design.md) | Architecture, data model, router algorithms, security |
-| [Overview](docs/overview.md) | Product overview, market analysis, technology landscape |
+| Document                               | Description                                                           |
+| -------------------------------------- | --------------------------------------------------------------------- |
+| [Usage Guide](docs/usage.md)           | CLI, Python library, REST API, segments, manifests, video integration |
+| [Developer Guide](docs/development.md) | Setup, project structure, testing, writing adapters, contributing     |
+| [System Design](docs/system-design.md) | Architecture, data model, router algorithms, security                 |
+| [Overview](docs/overview.md)           | Product overview, market analysis, technology landscape               |
 
 ## License
 

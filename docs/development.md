@@ -25,7 +25,7 @@ uv run mypy src/voxid/
 
 ## Project Structure
 
-```
+```text
 VoxID/
 ├── src/voxid/
 │   ├── __init__.py              # Public API exports
@@ -315,38 +315,38 @@ Configuration is in `pyproject.toml`:
 
 ### Core (always installed)
 
-| Package | Purpose |
-|---------|---------|
-| `pydantic` | Schema validation (API models, SceneManifest) |
-| `safetensors` | Secure tensor serialization for prompts |
-| `soundfile` | WAV read/write |
-| `pydub` | Audio manipulation |
-| `click` | CLI framework |
-| `tomli` / `tomli-w` | TOML read/write for config and metadata |
-| `numpy` | Audio array operations |
-| `fastapi` | REST API framework |
-| `uvicorn` | ASGI server |
-| `sse-starlette` | Server-Sent Events for streaming |
+| Package             | Purpose                                       |
+| ------------------- | --------------------------------------------- |
+| `pydantic`          | Schema validation (API models, SceneManifest) |
+| `safetensors`       | Secure tensor serialization for prompts       |
+| `soundfile`         | WAV read/write                                |
+| `pydub`             | Audio manipulation                            |
+| `click`             | CLI framework                                 |
+| `tomli` / `tomli-w` | TOML read/write for config and metadata       |
+| `numpy`             | Audio array operations                        |
+| `fastapi`           | REST API framework                            |
+| `uvicorn`           | ASGI server                                   |
+| `sse-starlette`     | Server-Sent Events for streaming              |
 
 ### Optional (per engine)
 
-| Extra | Packages | Engine |
-|-------|----------|--------|
-| `qwen3-tts` | `qwen-tts` | Qwen3-TTS (CUDA/MPS) |
+| Extra           | Packages    | Engine                    |
+| --------------- | ----------- | ------------------------- |
+| `qwen3-tts`     | `qwen-tts`  | Qwen3-TTS (CUDA/MPS)      |
 | `qwen3-tts-mlx` | `mlx-audio` | Qwen3-TTS (Apple Silicon) |
 
 These extras are mutually exclusive (configured in `pyproject.toml` `[tool.uv.conflicts]`).
 
 ### Dev
 
-| Package | Purpose |
-|---------|---------|
-| `pytest` | Test runner |
-| `pytest-cov` | Coverage reporting |
-| `pytest-asyncio` | Async test support |
-| `mypy` | Static type checking |
-| `ruff` | Linting + formatting |
-| `httpx` | Test HTTP client for API tests |
+| Package          | Purpose                        |
+| ---------------- | ------------------------------ |
+| `pytest`         | Test runner                    |
+| `pytest-cov`     | Coverage reporting             |
+| `pytest-asyncio` | Async test support             |
+| `mypy`           | Static type checking           |
+| `ruff`           | Linting + formatting           |
+| `httpx`          | Test HTTP client for API tests |
 
 ## Common Development Tasks
 
