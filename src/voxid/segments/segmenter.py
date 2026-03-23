@@ -55,7 +55,7 @@ class TextSegmenter:
         paragraphs = _PARA_SPLIT.split(text)
         raw_segments: list[tuple[str, str]] = []  # (text, boundary_type)
 
-        for para_idx, para in enumerate(paragraphs):
+        for para in paragraphs:
             para = para.strip()
             if not para:
                 continue
@@ -70,12 +70,10 @@ class TextSegmenter:
                 if not group_text:
                     continue
 
-                if para_idx > 0 and group_idx == 0:
-                    boundary = "paragraph"
-                elif group_idx > 0:
+                if group_idx > 0:
                     boundary = "sentence"
                 else:
-                    boundary = "paragraph" if para_idx == 0 else "paragraph"
+                    boundary = "paragraph"
 
                 raw_segments.append((group_text, boundary))
 

@@ -260,7 +260,7 @@ class VoxID:
         if not available_styles:
             available_styles = [identity.default_style]
 
-        _segments, plan = build_segment_plan(
+        _, plan = build_segment_plan(
             text=text,
             router=self._router,
             available_styles=available_styles,
