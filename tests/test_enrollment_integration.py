@@ -5,6 +5,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+import pytest
+import soundfile as sf
+
 import voxid.adapters.stub  # noqa: F401
 from voxid.config import VoxIDConfig
 from voxid.core import VoxID
@@ -13,6 +16,7 @@ from voxid.enrollment import (
     SessionStatus,
     SessionStore,
 )
+from voxid.enrollment.health import EnrollmentHealthReport
 
 
 def _make_good_audio(sr: int = 24000, duration_s: float = 5.0) -> np.ndarray:
@@ -243,3 +247,116 @@ class TestEndToEnd:
         styles = pipeline2.finalize(restored)
         assert len(styles) == 1
         assert restored.status == SessionStatus.COMPLETE
+
+
+# --- Fusion strategies ---
+
+
+class TestFuseSamples:
+    def test_best_selects_highest_snr(
+        self, pipeline: EnrollmentPipeline,
+    ) -> None:
+        session = pipeline.create_session(
+            "alice", ["phonetic"], prompts_per_style=3,
+        )
+        for _ in range(3):
+            if session.current_prompt() is None:
+                break
+            pipeline.record_sample(session, _make_good_audio(), 24000)
+
+        accepted = session.accepted_samples_for_style("phonetic")
+        assert len(accepted) >= 1
+        audio, sr, text = pipeline.fuse_samples(accepted, strategy="best")
+        assert len(audio) > 0
+        assert sr == 24000
+        assert len(text) > 0
+
+    def test_concatenate_joins_with_silence(
+        self, pipeline: EnrollmentPipeline,
+    ) -> None:
+        session = pipeline.create_session(
+            "alice", ["phonetic"], prompts_per_style=2,
+        )
+        pipeline.record_sample(session, _make_good_audio(), 24000)
+        pipeline.record_sample(session, _make_good_audio(), 24000)
+
+        accepted = session.accepted_samples_for_style("phonetic")
+        assert len(accepted) == 2
+
+        audio, sr, text = pipeline.fuse_samples(
+            accepted, strategy="concatenate",
+        )
+        # Concatenated audio should be longer than any individual sample
+        # (two samples + 500ms silence gap)
+        individual_data, _ = sf.read(accepted[0].audio_path)
+        assert len(audio) > len(individual_data)
+        assert sr == 24000
+
+    def test_concatenate_ref_text_joined(
+        self, pipeline: EnrollmentPipeline,
+    ) -> None:
+        session = pipeline.create_session(
+            "alice", ["phonetic"], prompts_per_style=2,
+        )
+        pipeline.record_sample(session, _make_good_audio(), 24000)
+        pipeline.record_sample(session, _make_good_audio(), 24000)
+
+        accepted = session.accepted_samples_for_style("phonetic")
+        _, _, text = pipeline.fuse_samples(
+            accepted, strategy="concatenate",
+        )
+        # Text should contain words from both prompts
+        for sample in accepted:
+            # At least first word of each prompt text should appear
+            first_word = sample.prompt_text.split()[0]
+            assert first_word in text
+
+    def test_no_accepted_samples_raises(
+        self, pipeline: EnrollmentPipeline,
+    ) -> None:
+        with pytest.raises(ValueError, match="No accepted samples"):
+            pipeline.fuse_samples([], strategy="best")
+
+
+# --- Enrollment health ---
+
+
+class TestEnrollmentHealth:
+    def test_new_identity_healthy(self, vox: VoxID) -> None:
+        report = vox.check_enrollment_health("alice")
+        assert isinstance(report, EnrollmentHealthReport)
+        assert report.age_days >= 0
+        assert report.re_enrollment_recommended is False
+        assert report.drift_detected is False
+        assert report.reasons == []
+
+    def test_old_identity_recommends_reenroll(
+        self, vox: VoxID,
+    ) -> None:
+        # Patch the identity's created_at to 4 years ago
+        identity = vox._store.get_identity("alice")
+        import datetime
+
+        old_date = (
+            datetime.datetime.now(tz=datetime.UTC)
+            - datetime.timedelta(days=1200)
+        ).isoformat()
+        identity.created_at = old_date
+
+        # Re-save the identity with old date
+        import json
+        import tomli_w
+
+        idir = vox._store._root / "identities" / "alice"
+        toml_data = identity.to_toml()
+        (idir / "identity.toml").write_bytes(
+            tomli_w.dumps(toml_data).encode(),
+        )
+        (idir / "consent.json").write_text(
+            json.dumps(identity.consent_record.to_dict(), indent=2),
+        )
+
+        report = vox.check_enrollment_health("alice")
+        assert report.re_enrollment_recommended is True
+        assert report.age_days >= 1200
+        assert any("exceeds" in r for r in report.reasons)
