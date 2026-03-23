@@ -116,3 +116,60 @@ class RouteResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str = "ok"
     version: str
+
+
+# ── Enrollment ───────────────────────────
+
+
+class CreateEnrollSessionRequest(BaseModel):
+    identity_id: str
+    styles: list[str]
+    prompts_per_style: int = 5
+
+
+class EnrollPromptResponse(BaseModel):
+    text: str
+    style: str
+    unique_phoneme_count: int
+    nasal_count: int
+    affricate_count: int
+
+
+class EnrollSessionResponse(BaseModel):
+    session_id: str
+    identity_id: str
+    styles: list[str]
+    status: str
+    prompts_per_style: int
+    current_style: str | None
+    current_prompt: EnrollPromptResponse | None
+    progress: dict[str, Any]
+
+
+class QualityReportResponse(BaseModel):
+    passed: bool
+    snr_db: float
+    rms_dbfs: float
+    peak_dbfs: float
+    speech_ratio: float
+    net_speech_duration_s: float
+    total_duration_s: float
+    sample_rate: int
+    warnings: list[str]
+    rejection_reasons: list[str]
+
+
+class UploadSampleResponse(BaseModel):
+    accepted: bool
+    quality_report: QualityReportResponse
+    next_prompt: EnrollPromptResponse | None
+
+
+class EnrollPromptsResponse(BaseModel):
+    style: str
+    prompts: list[EnrollPromptResponse]
+
+
+class CompleteSessionResponse(BaseModel):
+    session_id: str
+    styles_registered: list[str]

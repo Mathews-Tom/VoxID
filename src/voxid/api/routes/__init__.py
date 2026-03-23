@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from .enroll import router as enroll_router
 from .generate import router as generate_router
 from .health import router as health_router
 from .identities import router as identities_router
@@ -11,6 +12,7 @@ all_routers: list[APIRouter] = [
     identities_router,
     generate_router,
     route_router,
+    enroll_router,
     health_router,
 ]
 
