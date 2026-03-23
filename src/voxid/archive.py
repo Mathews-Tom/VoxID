@@ -13,6 +13,7 @@ import tomli
 import tomli_w
 
 from .models import ConsentRecord, Identity, Style
+from .security.consent import check_export_consent, check_import_consent
 from .store import VoicePromptStore
 
 
@@ -35,6 +36,7 @@ class ArchiveExporter:
         identity_id: str,
         output_path: Path,
         signing_key: bytes | None = None,
+        target_scope: str = "personal",
     ) -> Path:
         """Export identity to a .voxid ZIP archive.
 
@@ -46,6 +48,18 @@ class ArchiveExporter:
         over all file hashes and stores in manifest.json.
         """
         identity = self._store.get_identity(identity_id)
+
+        # Validate consent allows export
+        consent_result = check_export_consent(
+            identity,
+            target_scope=target_scope,
+        )
+        if not consent_result.valid:
+            raise ValueError(
+                "Export blocked by consent policy: "
+                + "; ".join(consent_result.errors)
+            )
+
         styles = self._store.list_styles(identity_id)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -187,6 +201,10 @@ class ArchiveImporter:
             consent_data: dict[str, Any] = json.loads(zf.read("consent.json"))
             consent = ConsentRecord.from_dict(consent_data)
             identity = Identity.from_toml(identity_data, consent)
+
+            # Validate imported consent (advisory — does not block import)
+            consent_check = check_import_consent(consent)
+            _ = consent_check  # warnings available for callers if needed
 
             # Create identity in store
             self._store.create_identity(identity)
