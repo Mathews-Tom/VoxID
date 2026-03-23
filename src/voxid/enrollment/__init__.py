@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .consent import ConsentManager
 from .phoneme_tracker import (
     ALL_PHONEMES,
     PHONEME_WEIGHTS,
@@ -25,6 +26,7 @@ from .session import (
 
 __all__ = [
     "ALL_PHONEMES",
+    "ConsentManager",
     "AudioPreprocessor",
     "AudioRecorder",
     "EnrollmentPrompt",
