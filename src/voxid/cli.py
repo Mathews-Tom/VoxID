@@ -1,10 +1,31 @@
 from __future__ import annotations
 
+import datetime
+import uuid
 from pathlib import Path
 
 import click
+import numpy as np
+import soundfile as sf
 
 from .core import VoxID
+from .enrollment.cli_ui import (
+    display_coverage_bar,
+    display_prompt,
+    display_quality_result,
+    display_session_header,
+    display_session_summary,
+)
+from .enrollment.preprocessor import AudioPreprocessor
+from .enrollment.quality_gate import QualityGate
+from .enrollment.recorder import AudioRecorder, save_recording
+from .enrollment.script_generator import ScriptGenerator
+from .enrollment.session import (
+    EnrollmentSample,
+    EnrollmentSession,
+    SessionStatus,
+    SessionStore,
+)
 
 
 @click.group()
@@ -398,3 +419,332 @@ def serve(host: str, port: int, reload: bool) -> None:
         reload=reload,
         factory=True,
     )
+
+
+@cli.command()
+@click.argument("identity_id")
+@click.option(
+    "--styles",
+    required=True,
+    help="Comma-separated style IDs.",
+)
+@click.option(
+    "--prompts-per-style",
+    default=5,
+    type=int,
+    show_default=True,
+    help="Number of prompts per style.",
+)
+@click.option(
+    "--resume",
+    type=str,
+    default=None,
+    help="Resume an existing session by ID.",
+)
+@click.option(
+    "--device",
+    type=str,
+    default=None,
+    help="Audio input device name or index.",
+)
+@click.option(
+    "--import-audio",
+    type=click.Path(exists=True),
+    default=None,
+    help="Import pre-recorded audio instead of recording.",
+)
+def enroll(
+    identity_id: str,
+    styles: str,
+    prompts_per_style: int,
+    resume: str | None,
+    device: str | None,
+    import_audio: str | None,
+) -> None:
+    """Enroll a voice identity with guided recording or audio import."""
+    vox = VoxID()
+    store_path = vox._store._root
+    style_list = [s.strip() for s in styles.split(",")]
+
+    # Validate identity exists
+    if identity_id not in vox.list_identities():
+        raise click.ClickException(
+            f"Identity '{identity_id}' not found. "
+            f"Create it first: voxid identity create {identity_id} --name ..."
+        )
+
+    session_store = SessionStore(store_path)
+    generator = ScriptGenerator()
+    gate = QualityGate()
+    preprocessor = AudioPreprocessor()
+
+    if import_audio is not None:
+        _run_import_mode(
+            vox=vox,
+            identity_id=identity_id,
+            style_list=style_list,
+            import_path=Path(import_audio),
+            gate=gate,
+            preprocessor=preprocessor,
+        )
+        return
+
+    # Create or resume session
+    if resume is not None:
+        session = session_store.load(resume)
+        click.echo(
+            click.style("Resumed session: ", fg="cyan") + resume,
+        )
+    else:
+        prompts = {
+            s: generator.select_prompts(
+                s, count=prompts_per_style,
+            )
+            for s in style_list
+        }
+        session = EnrollmentSession(
+            session_id=str(uuid.uuid4())[:8],
+            identity_id=identity_id,
+            styles=style_list,
+            started_at=datetime.datetime.now(
+                tz=datetime.UTC,
+            ).isoformat(),
+            status=SessionStatus.IN_PROGRESS,
+            prompts_per_style=prompts_per_style,
+            prompts=prompts,
+        )
+
+    display_session_header(identity_id, style_list, prompts_per_style)
+
+    try:
+        _run_recording_loop(
+            session=session,
+            session_store=session_store,
+            gate=gate,
+            preprocessor=preprocessor,
+            store_path=store_path,
+            device=device,
+        )
+    except KeyboardInterrupt:
+        click.echo("\n")
+        click.echo(click.style("Session interrupted.", fg="yellow"))
+        session.abandon()
+        session_store.save(session)
+        click.echo(f"  Saved as: {session.session_id} (abandoned)")
+        return
+
+    # Register styles with VoxID
+    session.complete()
+    session_store.save(session)
+
+    _register_styles(vox, session)
+    display_session_summary(session)
+
+
+def _run_recording_loop(
+    session: EnrollmentSession,
+    session_store: SessionStore,
+    gate: QualityGate,
+    preprocessor: AudioPreprocessor,
+    store_path: Path,
+    device: str | None,
+) -> None:
+    """Interactive recording loop for each prompt in the session."""
+    recorder = AudioRecorder(device=device)
+    total_prompts = sum(
+        len(p) for p in session.prompts.values()
+    )
+    prompt_counter = 0
+
+    while session.current_prompt() is not None:
+        prompt = session.current_prompt()
+        style = session.current_style()
+        if prompt is None or style is None:
+            break
+
+        prompt_counter += 1
+        display_prompt(
+            text=prompt.text,
+            prompt_num=prompt_counter,
+            total=total_prompts,
+            style=style,
+        )
+
+        click.echo("  Press ENTER to record, S to skip, Q to quit")
+        key = click.getchar()
+        if key in ("q", "Q"):
+            break
+        if key in ("s", "S"):
+            session.skip_prompt()
+            continue
+
+        # Record
+        click.echo("  Recording... (press ENTER to stop)")
+        recorder.start()
+        click.getchar()
+        audio = recorder.stop()
+
+        sr = recorder.sample_rate
+        report = gate.validate(audio, sr)
+        display_quality_result(report)
+
+        if report.passed:
+            processed, proc_sr = preprocessor.process(audio, sr)
+            audio_dir = (
+                store_path / "enrollment_sessions"
+                / session.session_id / "samples"
+            )
+            audio_path = audio_dir / f"{style}_{prompt_counter}.wav"
+            save_recording(processed, proc_sr, audio_path)
+
+            sample = EnrollmentSample(
+                prompt_index=session.current_prompt_index,
+                prompt_text=prompt.text,
+                style_id=style,
+                attempt=1,
+                audio_path=str(audio_path),
+                duration_s=report.total_duration_s,
+                quality_report=report,
+                accepted=True,
+                rejection_reason=None,
+            )
+            session.accept_sample(sample)
+            session.advance()
+
+            tracker = session.phoneme_trackers.get(style)
+            if tracker:
+                display_coverage_bar(tracker.coverage_percent())
+        else:
+            click.echo("  R to retry, S to skip")
+            retry_key = click.getchar()
+            if retry_key in ("s", "S"):
+                session.reject_sample(
+                    session.current_prompt_index,
+                    "; ".join(report.rejection_reasons),
+                )
+                session.advance()
+            # else retry (loop continues on same prompt)
+
+        session_store.save(session)
+
+
+def _run_import_mode(
+    vox: VoxID,
+    identity_id: str,
+    style_list: list[str],
+    import_path: Path,
+    gate: QualityGate,
+    preprocessor: AudioPreprocessor,
+) -> None:
+    """Non-interactive import of pre-recorded audio files."""
+    audio_files = sorted(
+        list(import_path.glob("*.wav"))
+        + list(import_path.glob("*.mp3")),
+    )
+    if not audio_files:
+        raise click.ClickException(
+            f"No WAV/MP3 files found in {import_path}",
+        )
+
+    for style in style_list:
+        # Match by filename stem: conversational.wav → style "conversational"
+        matched = [
+            f for f in audio_files if f.stem == style
+        ]
+        if not matched:
+            # Fall back: assign files round-robin
+            idx = style_list.index(style)
+            if idx < len(audio_files):
+                matched = [audio_files[idx]]
+
+        if not matched:
+            click.echo(
+                click.style(f"  No audio file for style '{style}'", fg="red"),
+            )
+            continue
+
+        best_path: Path | None = None
+        best_snr = -999.0
+
+        for audio_file in matched:
+            audio_data, sr = sf.read(str(audio_file))
+            audio_arr = np.asarray(audio_data, dtype=np.float64)
+            report = gate.validate(audio_arr, sr)
+
+            click.echo(f"  {audio_file.name} → {style}")
+            display_quality_result(report)
+
+            if report.passed and report.snr_db > best_snr:
+                best_snr = report.snr_db
+                best_path = audio_file
+
+        if best_path is None:
+            click.echo(
+                click.style(
+                    f"  No passing audio for style '{style}'", fg="red",
+                ),
+            )
+            continue
+
+        # Preprocess and register
+        audio_data, sr = sf.read(str(best_path))
+        audio_arr = np.asarray(audio_data, dtype=np.float64)
+        processed, proc_sr = preprocessor.process(audio_arr, sr)
+        out_path = best_path.parent / f"{style}_processed.wav"
+        save_recording(processed, proc_sr, out_path)
+
+        # Look for transcript sidecar
+        transcript_path = best_path.with_suffix(".txt")
+        if transcript_path.exists():
+            transcript = transcript_path.read_text(encoding="utf-8").strip()
+        else:
+            transcript = f"Enrollment audio for {style}"
+            click.echo(
+                click.style(
+                    f"  No transcript sidecar ({transcript_path.name}), "
+                    f"using default",
+                    fg="yellow",
+                ),
+            )
+
+        vox.add_style(
+            identity_id=identity_id,
+            id=style,
+            label=style.replace("_", " ").title(),
+            description=f"Enrolled {style} style",
+            ref_audio=str(out_path),
+            ref_text=transcript,
+        )
+        click.echo(
+            click.style("  Registered style: ", fg="green")
+            + click.style(style, bold=True),
+        )
+
+
+def _register_styles(
+    vox: VoxID,
+    session: EnrollmentSession,
+) -> None:
+    """Register best samples as styles in VoxID."""
+    for style in session.styles:
+        best = session.best_sample_for_style(style)
+        if best is None or best.audio_path is None:
+            click.echo(
+                click.style(
+                    f"  No accepted sample for '{style}'", fg="yellow",
+                ),
+            )
+            continue
+
+        vox.add_style(
+            identity_id=session.identity_id,
+            id=style,
+            label=style.replace("_", " ").title(),
+            description=f"Enrolled {style} style",
+            ref_audio=best.audio_path,
+            ref_text=best.prompt_text,
+        )
+        click.echo(
+            click.style("  Registered style: ", fg="green")
+            + click.style(style, bold=True),
+        )
