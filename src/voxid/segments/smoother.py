@@ -98,27 +98,14 @@ class StyleSmoother:
                 continue
 
             # Different style — apply smoothing rules
-
-            # Rule 1: short segments inherit previous style
-            if sentence_counts[i] < self._min_sentences:
-                blended = (
-                    self._alpha * prev_confidence
-                    + (1 - self._alpha) * original_confidence
-                )
-                result.append(
-                    SmoothedDecision(
-                        style=prev_style,
-                        confidence=blended,
-                        original_style=original_style,
-                        original_confidence=original_confidence,
-                        was_smoothed=True,
-                    )
-                )
-                continue
-
-            # Rule 2: confidence delta must exceed threshold
+            # Suppress switch if segment is too short or confidence delta insufficient
             delta = original_confidence - prev_confidence
-            if delta < self._switch_threshold:
+            suppress_switch = (
+                sentence_counts[i] < self._min_sentences
+                or delta < self._switch_threshold
+            )
+
+            if suppress_switch:
                 blended = (
                     self._alpha * prev_confidence
                     + (1 - self._alpha) * original_confidence
@@ -132,17 +119,15 @@ class StyleSmoother:
                         was_smoothed=True,
                     )
                 )
-                continue
-
-            # Sufficient confidence for switch
-            result.append(
-                SmoothedDecision(
-                    style=original_style,
-                    confidence=original_confidence,
-                    original_style=original_style,
-                    original_confidence=original_confidence,
-                    was_smoothed=False,
+            else:
+                result.append(
+                    SmoothedDecision(
+                        style=original_style,
+                        confidence=original_confidence,
+                        original_style=original_style,
+                        original_confidence=original_confidence,
+                        was_smoothed=False,
+                    )
                 )
-            )
 
         return result
