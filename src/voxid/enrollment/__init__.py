@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import datetime
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
 from .consent import ConsentManager
+from .health import EnrollmentHealthReport, check_enrollment_health
 from .phoneme_tracker import (
     ALL_PHONEMES,
     PHONEME_WEIGHTS,
@@ -29,6 +30,7 @@ from .session import (
     SessionStatus,
     SessionStore,
 )
+from .vad import VADBackend, detect_speech, detect_speech_silero, detect_speech_webrtc
 
 if TYPE_CHECKING:
     from voxid.core import VoxID
@@ -165,12 +167,85 @@ class EnrollmentPipeline:
         self._session_store.save(session)
         return registered
 
+    def fuse_samples(
+        self,
+        samples: list[EnrollmentSample],
+        strategy: Literal["best", "concatenate", "average"] = "best",
+    ) -> tuple[np.ndarray, int, str]:
+        """Fuse multiple enrollment samples into a single reference.
+
+        Returns (audio, sample_rate, ref_text).
+
+        Strategies:
+        - best: select highest-SNR sample
+        - concatenate: join all with 500ms silence gaps
+        - average: same as concatenate (stores individuals for
+          future embedding averaging when adapters support it)
+        """
+        import soundfile as sf_mod
+
+        accepted = [s for s in samples if s.accepted and s.audio_path]
+        if not accepted:
+            raise ValueError("No accepted samples to fuse")
+
+        if strategy == "best":
+            best = max(
+                accepted,
+                key=lambda s: (
+                    s.quality_report.snr_db
+                    if s.quality_report is not None
+                    else 0.0
+                ),
+            )
+            assert best.audio_path is not None
+            audio, sr = sf_mod.read(best.audio_path)
+            return (
+                np.asarray(audio, dtype=np.float64),
+                int(sr),
+                best.prompt_text,
+            )
+
+        # concatenate and average share the same audio logic
+        target_sr: int | None = None
+        chunks: list[np.ndarray] = []
+        texts: list[str] = []
+
+        for sample in accepted:
+            assert sample.audio_path is not None
+            audio, sr = sf_mod.read(sample.audio_path)
+            arr = np.asarray(audio, dtype=np.float64)
+            if target_sr is None:
+                target_sr = int(sr)
+            elif int(sr) != target_sr:
+                n_out = int(len(arr) * target_sr / sr)
+                arr = np.interp(
+                    np.linspace(0, len(arr) - 1, n_out),
+                    np.arange(len(arr)),
+                    arr,
+                )
+            chunks.append(arr)
+            texts.append(sample.prompt_text)
+
+        assert target_sr is not None
+        silence = np.zeros(int(target_sr * 0.5), dtype=np.float64)
+
+        fused_parts: list[np.ndarray] = []
+        for i, chunk in enumerate(chunks):
+            if i > 0:
+                fused_parts.append(silence)
+            fused_parts.append(chunk)
+
+        fused_audio = np.concatenate(fused_parts)
+        ref_text = " ".join(texts)
+        return fused_audio, target_sr, ref_text
+
 
 __all__ = [
     "ALL_PHONEMES",
     "AudioPreprocessor",
     "AudioRecorder",
     "ConsentManager",
+    "EnrollmentHealthReport",
     "EnrollmentPipeline",
     "EnrollmentPrompt",
     "EnrollmentSample",
@@ -184,7 +259,12 @@ __all__ = [
     "ScriptGenerator",
     "SessionStatus",
     "SessionStore",
+    "VADBackend",
+    "check_enrollment_health",
+    "detect_speech",
     "detect_speech_energy",
+    "detect_speech_silero",
+    "detect_speech_webrtc",
     "estimate_snr",
     "load_cmudict",
     "save_recording",
