@@ -3,14 +3,19 @@ from __future__ import annotations
 import datetime
 import io
 import uuid
+from pathlib import Path
 
 import numpy as np
 import soundfile as sf
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 
 from voxid.api.deps import get_voxid
 from voxid.api.models import (
     CompleteSessionResponse,
+    ConsentRecordResponse,
+    ConsentStatementResponse,
+    ConsentStatusResponse,
     CreateEnrollSessionRequest,
     EnrollPromptResponse,
     EnrollPromptsResponse,
@@ -19,6 +24,7 @@ from voxid.api.models import (
     UploadSampleResponse,
 )
 from voxid.core import VoxID
+from voxid.enrollment.consent import ConsentManager
 from voxid.enrollment.preprocessor import AudioPreprocessor
 from voxid.enrollment.quality_gate import QualityGate
 from voxid.enrollment.recorder import save_recording
@@ -305,3 +311,104 @@ async def get_next_prompt(
 
     prompt = session.current_prompt()
     return _prompt_to_response(prompt) if prompt is not None else None
+
+
+# ── Consent endpoints ──────────────────────────────────────────────────
+
+
+def _get_consent_manager(vox: VoxID = Depends(get_voxid)) -> ConsentManager:
+    return ConsentManager(vox._store._root)
+
+
+@router.get("/consent/statement", response_model=ConsentStatementResponse)
+async def get_consent_statement(
+    identity_id: str = Query(..., description="Identity ID"),
+    vox: VoxID = Depends(get_voxid),
+) -> ConsentStatementResponse:
+    if identity_id not in vox.list_identities():
+        raise HTTPException(status_code=404, detail=f"Identity '{identity_id}' not found")
+    identity = vox._store.get_identity(identity_id)
+    mgr = ConsentManager(vox._store._root)
+    statement = mgr.generate_statement(identity.name)
+    return ConsentStatementResponse(
+        identity_id=identity_id,
+        identity_name=identity.name,
+        statement=statement,
+    )
+
+
+@router.get("/consent/{identity_id}/status", response_model=ConsentStatusResponse)
+async def get_consent_status(
+    identity_id: str,
+    consent_mgr: ConsentManager = Depends(_get_consent_manager),
+) -> ConsentStatusResponse:
+    return ConsentStatusResponse(
+        identity_id=identity_id,
+        has_consent=consent_mgr.verify_consent_exists(identity_id),
+    )
+
+
+@router.post("/consent/{identity_id}", response_model=ConsentRecordResponse)
+async def upload_consent(
+    identity_id: str,
+    file: UploadFile,
+    vox: VoxID = Depends(get_voxid),
+) -> ConsentRecordResponse:
+    if identity_id not in vox.list_identities():
+        raise HTTPException(status_code=404, detail=f"Identity '{identity_id}' not found")
+
+    contents = await file.read()
+    audio_data, sr = sf.read(io.BytesIO(contents))
+    audio_arr = np.asarray(audio_data, dtype=np.float64)
+
+    report = _gate.validate(audio_arr, sr)
+    if not report.passed:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "Consent recording failed quality check",
+                "rejection_reasons": report.rejection_reasons,
+                "snr_db": report.snr_db,
+                "rms_dbfs": report.rms_dbfs,
+                "peak_dbfs": report.peak_dbfs,
+                "speech_ratio": report.speech_ratio,
+                "total_duration_s": report.total_duration_s,
+            },
+        )
+
+    mgr = ConsentManager(vox._store._root)
+    record = mgr.record_consent(
+        identity_id=identity_id,
+        audio=audio_arr,
+        sr=sr,
+        scope="text-to-speech generation",
+    )
+    return ConsentRecordResponse(
+        identity_id=identity_id,
+        timestamp=record.timestamp,
+        scope=record.scope,
+        jurisdiction=record.jurisdiction,
+        document_hash=record.document_hash,
+    )
+
+
+# ── Sample audio streaming ─────────────────────────────────────────────
+
+
+@router.get("/sessions/{session_id}/samples/{sample_index}/audio")
+async def get_sample_audio(
+    session_id: str,
+    sample_index: int,
+    store: SessionStore = Depends(_get_session_store),
+) -> FileResponse:
+    session = _load_session(session_id, store)
+
+    accepted = [s for s in session.samples if s.accepted]
+    if sample_index < 0 or sample_index >= len(accepted):
+        raise HTTPException(status_code=404, detail="Sample not found")
+
+    sample = accepted[sample_index]
+    if sample.audio_path is None or not Path(sample.audio_path).exists():
+        raise HTTPException(status_code=404, detail="Sample audio file not found")
+
+    return FileResponse(sample.audio_path, media_type="audio/wav")

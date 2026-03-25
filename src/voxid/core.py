@@ -518,6 +518,9 @@ class VoxID:
             archive_path, signing_key,
         )
 
+    def delete_identity(self, identity_id: str) -> None:
+        self._store.delete_identity(identity_id)
+
     def list_identities(self) -> list[str]:
         return self._store.list_identities()
 

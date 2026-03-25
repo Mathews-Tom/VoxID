@@ -33,14 +33,14 @@ def _make_noise(sr: int, duration_s: float, amplitude: float = 0.01) -> np.ndarr
 class TestQualityConfig:
     def test_defaults_match_spec(self) -> None:
         cfg = QualityConfig()
-        assert cfg.min_duration_s == 3.0
+        assert cfg.min_duration_s == 2.0
         assert cfg.max_duration_s == 60.0
-        assert cfg.min_snr_db == 25.0
-        assert cfg.warn_snr_db == 40.0
+        assert cfg.min_snr_db == 20.0
+        assert cfg.warn_snr_db == 30.0
         assert cfg.min_rms_dbfs == -40.0
         assert cfg.max_rms_dbfs == -3.0
-        assert cfg.max_peak_dbfs == -1.0
-        assert cfg.min_speech_ratio == 0.6
+        assert cfg.max_peak_dbfs == -0.5
+        assert cfg.min_speech_ratio == 0.4
         assert cfg.min_sample_rate == 24000
 
 
@@ -99,16 +99,16 @@ class TestQualityReport:
 
 class TestEstimateSNR:
     def test_clean_signal_high_snr(self) -> None:
-        # Arrange — 0.5s silence then 4.5s clean sine
+        # Arrange — low real noise then clean sine (not digital zeros)
         sr = 24000
-        noise = np.zeros(int(0.5 * sr), dtype=np.float64)
+        noise = _make_noise(sr, 0.5, amplitude=0.001)
         signal = _make_sine(sr, 4.5, amplitude=0.3)
         audio = np.concatenate([noise, signal])
 
         # Act
         snr = estimate_snr(audio, sr)
 
-        # Assert — clean signal over silence should give very high SNR
+        # Assert — clean signal over real noise should give high SNR
         assert snr > 40.0
 
     def test_noisy_signal_low_snr(self) -> None:
@@ -132,17 +132,17 @@ class TestEstimateSNR:
         assert estimate_snr(audio, 24000) == 0.0
 
     def test_with_vad_timestamps(self) -> None:
-        # Arrange — silence then speech
+        # Arrange — low real noise then speech
         sr = 24000
-        silence = np.zeros(int(0.5 * sr), dtype=np.float64)
+        noise = _make_noise(sr, 0.5, amplitude=0.001)
         speech = _make_sine(sr, 2.0, amplitude=0.3)
-        audio = np.concatenate([silence, speech])
-        vad = [(int(0.5 * sr), len(audio))]
+        audio = np.concatenate([noise, speech])
+        vad = [(len(noise), len(audio))]
 
         # Act
         snr = estimate_snr(audio, sr, vad_timestamps=vad)
 
-        # Assert
+        # Assert — speech over real noise floor should give high SNR
         assert snr > 40.0
 
     def test_very_short_audio(self) -> None:
@@ -254,8 +254,8 @@ class TestQualityGateValidate:
         )
         audio = np.concatenate([noise_floor, signal])
         report = gate.validate(audio, sr)
-        # SNR should be between 25 and 40
-        if 25.0 <= report.snr_db < 40.0:
+        # SNR should be between 20 and 30
+        if 20.0 <= report.snr_db < 30.0:
             assert any("Borderline SNR" in w for w in report.warnings)
 
     def test_validate_multiple_failures_lists_all_reasons(

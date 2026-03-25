@@ -35,7 +35,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         if not (
             request.method == "POST"
-            and request.url.path.startswith("/generate")
+            and request.url.path.startswith("/api/generate")
         ):
             return await call_next(request)
 

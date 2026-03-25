@@ -38,7 +38,7 @@ def ref_audio(tmp_path: Path) -> Path:
 @pytest.fixture
 def seeded_client(client: TestClient, ref_audio: Path) -> TestClient:
     client.post(
-        "/identities",
+        "/api/identities",
         json={
             "id": "tom",
             "name": "Tom",
@@ -47,7 +47,7 @@ def seeded_client(client: TestClient, ref_audio: Path) -> TestClient:
     )
     for sid in ["conversational", "technical", "narration", "emphatic"]:
         client.post(
-            "/identities/tom/styles",
+            "/api/identities/tom/styles",
             json={
                 "id": sid,
                 "label": sid.title(),
@@ -64,7 +64,7 @@ def seeded_client(client: TestClient, ref_audio: Path) -> TestClient:
 
 
 def test_health_returns_ok(client: TestClient) -> None:
-    response = client.get("/health")
+    response = client.get("/api/health")
 
     assert response.status_code == 200
     body = response.json()
@@ -78,7 +78,7 @@ def test_health_returns_ok(client: TestClient) -> None:
 
 def test_create_identity_returns_201(client: TestClient) -> None:
     response = client.post(
-        "/identities",
+        "/api/identities",
         json={"id": "alice", "name": "Alice", "default_style": "conversational"},
     )
 
@@ -92,15 +92,15 @@ def test_create_identity_returns_201(client: TestClient) -> None:
 
 def test_create_identity_duplicate_returns_409(client: TestClient) -> None:
     payload = {"id": "bob", "name": "Bob", "default_style": "conversational"}
-    client.post("/identities", json=payload)
+    client.post("/api/identities", json=payload)
 
-    response = client.post("/identities", json=payload)
+    response = client.post("/api/identities", json=payload)
 
     assert response.status_code == 409
 
 
 def test_list_identities_empty(client: TestClient) -> None:
-    response = client.get("/identities")
+    response = client.get("/api/identities")
 
     assert response.status_code == 200
     assert response.json()["identities"] == []
@@ -108,15 +108,15 @@ def test_list_identities_empty(client: TestClient) -> None:
 
 def test_list_identities_after_create(client: TestClient) -> None:
     client.post(
-        "/identities",
+        "/api/identities",
         json={"id": "carol", "name": "Carol", "default_style": "conversational"},
     )
     client.post(
-        "/identities",
+        "/api/identities",
         json={"id": "dave", "name": "Dave", "default_style": "conversational"},
     )
 
-    response = client.get("/identities")
+    response = client.get("/api/identities")
 
     assert response.status_code == 200
     identities = response.json()["identities"]
@@ -126,11 +126,11 @@ def test_list_identities_after_create(client: TestClient) -> None:
 
 def test_get_identity_returns_200(client: TestClient) -> None:
     client.post(
-        "/identities",
+        "/api/identities",
         json={"id": "tom", "name": "Tom", "default_style": "conversational"},
     )
 
-    response = client.get("/identities/tom")
+    response = client.get("/api/identities/tom")
 
     assert response.status_code == 200
     body = response.json()
@@ -139,24 +139,24 @@ def test_get_identity_returns_200(client: TestClient) -> None:
 
 
 def test_get_identity_not_found_returns_404(client: TestClient) -> None:
-    response = client.get("/identities/missing")
+    response = client.get("/api/identities/missing")
 
     assert response.status_code == 404
 
 
 def test_delete_identity_returns_204(client: TestClient) -> None:
     client.post(
-        "/identities",
+        "/api/identities",
         json={"id": "eve", "name": "Eve", "default_style": "conversational"},
     )
 
-    response = client.delete("/identities/eve")
+    response = client.delete("/api/identities/eve")
 
     assert response.status_code == 204
 
 
 def test_delete_identity_not_found_returns_404(client: TestClient) -> None:
-    response = client.delete("/identities/missing")
+    response = client.delete("/api/identities/missing")
 
     assert response.status_code == 404
 
@@ -166,12 +166,12 @@ def test_delete_identity_not_found_returns_404(client: TestClient) -> None:
 
 def test_add_style_returns_201(client: TestClient, ref_audio: Path) -> None:
     client.post(
-        "/identities",
+        "/api/identities",
         json={"id": "tom", "name": "Tom", "default_style": "conversational"},
     )
 
     response = client.post(
-        "/identities/tom/styles",
+        "/api/identities/tom/styles",
         json={
             "id": "conversational",
             "label": "Conversational",
@@ -192,7 +192,7 @@ def test_add_style_identity_not_found_returns_404(
     client: TestClient, ref_audio: Path
 ) -> None:
     response = client.post(
-        "/identities/nonexistent/styles",
+        "/api/identities/nonexistent/styles",
         json={
             "id": "conversational",
             "label": "Conversational",
@@ -210,11 +210,11 @@ def test_list_styles_returns_200(
     client: TestClient, ref_audio: Path
 ) -> None:
     client.post(
-        "/identities",
+        "/api/identities",
         json={"id": "tom", "name": "Tom", "default_style": "conversational"},
     )
     client.post(
-        "/identities/tom/styles",
+        "/api/identities/tom/styles",
         json={
             "id": "conversational",
             "label": "Conversational",
@@ -225,7 +225,7 @@ def test_list_styles_returns_200(
         },
     )
 
-    response = client.get("/identities/tom/styles")
+    response = client.get("/api/identities/tom/styles")
 
     assert response.status_code == 200
     body = response.json()
@@ -240,7 +240,7 @@ def test_generate_returns_200_with_audio_path(
     seeded_client: TestClient,
 ) -> None:
     response = seeded_client.post(
-        "/generate",
+        "/api/generate",
         json={"text": "Hello world.", "identity_id": "tom"},
     )
 
@@ -254,7 +254,7 @@ def test_generate_returns_200_with_audio_path(
 
 def test_generate_with_explicit_style(seeded_client: TestClient) -> None:
     response = seeded_client.post(
-        "/generate",
+        "/api/generate",
         json={
             "text": "Deploy the new version.",
             "identity_id": "tom",
@@ -268,7 +268,7 @@ def test_generate_with_explicit_style(seeded_client: TestClient) -> None:
 
 def test_generate_identity_not_found_returns_404(client: TestClient) -> None:
     response = client.post(
-        "/generate",
+        "/api/generate",
         json={"text": "Hello.", "identity_id": "nobody"},
     )
 
@@ -277,7 +277,7 @@ def test_generate_identity_not_found_returns_404(client: TestClient) -> None:
 
 def test_generate_segments_returns_200(seeded_client: TestClient) -> None:
     response = seeded_client.post(
-        "/generate/segments",
+        "/api/generate/segments",
         json={
             "text": "First sentence. Second sentence. Third sentence.",
             "identity_id": "tom",
@@ -292,7 +292,7 @@ def test_generate_segments_returns_200(seeded_client: TestClient) -> None:
 
 def test_generate_segments_stitched_path(seeded_client: TestClient) -> None:
     response = seeded_client.post(
-        "/generate/segments",
+        "/api/generate/segments",
         json={
             "text": "First sentence. Second sentence.",
             "identity_id": "tom",
@@ -307,7 +307,7 @@ def test_generate_segments_stitched_path(seeded_client: TestClient) -> None:
 
 def test_generate_manifest_returns_200(seeded_client: TestClient) -> None:
     response = seeded_client.post(
-        "/generate/manifest",
+        "/api/generate/manifest",
         json={
             "identity_id": "tom",
             "engine": "stub",
@@ -336,7 +336,7 @@ def test_generate_manifest_returns_200(seeded_client: TestClient) -> None:
 
 def test_generate_stream_returns_sse(seeded_client: TestClient) -> None:
     response = seeded_client.post(
-        "/generate/stream",
+        "/api/generate/stream",
         json={
             "text": "Hello world. This is a test.",
             "identity_id": "tom",
@@ -352,7 +352,7 @@ def test_generate_stream_returns_sse(seeded_client: TestClient) -> None:
 
 def test_route_returns_style_and_confidence(seeded_client: TestClient) -> None:
     response = seeded_client.post(
-        "/route",
+        "/api/route",
         json={
             "text": "Let me walk you through the deployment steps.",
             "identity_id": "tom",
@@ -391,12 +391,12 @@ def test_concurrent_generate_no_deadlock(
     fresh_client = TestClient(app, raise_server_exceptions=False)
 
     fresh_client.post(
-        "/identities",
+        "/api/identities",
         json={"id": "tom", "name": "Tom", "default_style": "conversational"},
     )
     for sid in ["conversational", "technical"]:
         fresh_client.post(
-            "/identities/tom/styles",
+            "/api/identities/tom/styles",
             json={
                 "id": sid,
                 "label": sid.title(),
@@ -409,7 +409,7 @@ def test_concurrent_generate_no_deadlock(
 
     def make_request(i: int) -> tuple[int, str]:
         response = fresh_client.post(
-            "/generate",
+            "/api/generate",
             json={
                 "text": f"Concurrent test number {i}.",
                 "identity_id": "tom",

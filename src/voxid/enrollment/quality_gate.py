@@ -16,14 +16,14 @@ _EPSILON = 1e-9
 class QualityConfig:
     """Thresholds for audio quality validation during enrollment."""
 
-    min_duration_s: float = 3.0
+    min_duration_s: float = 2.0
     max_duration_s: float = 60.0
-    min_snr_db: float = 25.0
-    warn_snr_db: float = 40.0
+    min_snr_db: float = 20.0
+    warn_snr_db: float = 30.0
     min_rms_dbfs: float = -40.0
     max_rms_dbfs: float = -3.0
-    max_peak_dbfs: float = -1.0
-    min_speech_ratio: float = 0.6
+    max_peak_dbfs: float = -0.5
+    min_speech_ratio: float = 0.4
     min_sample_rate: int = 24000
 
 
@@ -80,9 +80,13 @@ def estimate_snr(
 ) -> float:
     """Estimate signal-to-noise ratio in dB.
 
-    Uses the first `noise_window_s` seconds as noise reference unless
-    VAD timestamps are provided, in which case pre-speech segments
-    are used as the noise floor.
+    Noise floor is estimated from the quietest window in the recording
+    (sliding window of `noise_window_s` duration). This avoids false
+    readings from mic startup silence where the first N ms are digital
+    zeros.
+
+    When VAD timestamps are provided, non-speech segments are used
+    directly as the noise floor instead.
     """
     if len(audio) == 0:
         return 0.0
@@ -90,33 +94,73 @@ def estimate_snr(
     audio_f = audio.astype(np.float64)
 
     if vad_timestamps is not None and len(vad_timestamps) > 0:
-        # Use pre-first-speech segment as noise
-        first_speech_start = vad_timestamps[0][0]
-        if first_speech_start > 0:
-            noise = audio_f[:first_speech_start]
-        else:
-            noise = audio_f[: int(noise_window_s * sr)]
+        # Use non-speech segments as noise floor
+        non_speech_parts: list[np.ndarray] = []
+        prev_end = 0
+        for start, end in vad_timestamps:
+            if start > prev_end:
+                non_speech_parts.append(audio_f[prev_end:start])
+            prev_end = end
+        if prev_end < len(audio_f):
+            non_speech_parts.append(audio_f[prev_end:])
 
-        # Speech segments from VAD
+        if non_speech_parts:
+            noise = np.concatenate(non_speech_parts)
+        else:
+            noise = _find_quietest_window(audio_f, sr, noise_window_s)
+
         speech_parts = [
             audio_f[start:end] for start, end in vad_timestamps
         ]
         speech = np.concatenate(speech_parts) if speech_parts else audio_f
     else:
-        noise_samples = int(noise_window_s * sr)
-        noise_samples = min(noise_samples, len(audio_f))
-        noise = audio_f[:noise_samples]
-        speech = audio_f[noise_samples:] if noise_samples < len(audio_f) else audio_f
+        noise = _find_quietest_window(audio_f, sr, noise_window_s)
+        speech = audio_f
 
     noise_rms = float(np.sqrt(np.mean(noise ** 2)))
     speech_rms = float(np.sqrt(np.mean(speech ** 2)))
 
     if noise_rms < _EPSILON:
-        if speech_rms < _EPSILON:
-            return 0.0
-        return 100.0  # effectively infinite SNR
+        # Noise floor is digital silence — cannot compute meaningful SNR.
+        # Return 0 to force a warning rather than a fake perfect score.
+        return 0.0
 
-    return float(20.0 * np.log10(speech_rms / noise_rms))
+    snr = float(20.0 * np.log10((speech_rms + _EPSILON) / noise_rms))
+    # Cap at a realistic maximum — no consumer mic achieves >80 dB SNR
+    return min(snr, 80.0)
+
+
+def _find_quietest_window(
+    audio: np.ndarray,
+    sr: int,
+    window_s: float,
+) -> np.ndarray:
+    """Find the window with the lowest RMS energy in the audio.
+
+    Slides a window of `window_s` seconds across the audio in
+    non-overlapping hops and returns the one with the smallest RMS.
+    Skips windows that are digital silence (all zeros) since those
+    indicate mic startup artifacts, not real noise floor.
+    """
+    window_samples = int(window_s * sr)
+    if window_samples <= 0 or len(audio) <= window_samples:
+        return audio
+
+    best_window = audio[:window_samples]
+    best_rms = float("inf")
+
+    for offset in range(0, len(audio) - window_samples, window_samples):
+        chunk = audio[offset : offset + window_samples]
+        chunk_max = float(np.max(np.abs(chunk)))
+        # Skip digital silence — not a real noise measurement
+        if chunk_max < _EPSILON:
+            continue
+        rms = float(np.sqrt(np.mean(chunk ** 2)))
+        if rms < best_rms:
+            best_rms = rms
+            best_window = chunk
+
+    return best_window
 
 
 def _compute_speech_ratio(

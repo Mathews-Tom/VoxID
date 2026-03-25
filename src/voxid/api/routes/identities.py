@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 
 from voxid.api.deps import get_voxid
 from voxid.api.models import (
@@ -131,3 +134,40 @@ async def list_styles(
     except FileNotFoundError as exc:
         raise _identity_not_found(identity_id) from exc
     return StyleListResponse(styles=vox.list_styles(identity_id))
+
+
+@router.get("/{identity_id}/styles/{style_id}", response_model=StyleResponse)
+async def get_style(
+    identity_id: str,
+    style_id: str,
+    vox: VoxID = Depends(get_voxid),
+) -> StyleResponse:
+    try:
+        style = vox._store.get_style(identity_id, style_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return StyleResponse(
+        id=style.id,
+        identity_id=style.identity_id,
+        label=style.label,
+        description=style.description,
+        default_engine=style.default_engine,
+        language=style.language,
+        metadata=style.metadata,
+    )
+
+
+@router.get("/{identity_id}/styles/{style_id}/audio")
+async def get_style_audio(
+    identity_id: str,
+    style_id: str,
+    vox: VoxID = Depends(get_voxid),
+) -> FileResponse:
+    try:
+        style = vox._store.get_style(identity_id, style_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    audio_path = Path(style.ref_audio_path)
+    if not audio_path.exists():
+        raise HTTPException(status_code=404, detail="Reference audio file not found")
+    return FileResponse(str(audio_path), media_type="audio/wav")

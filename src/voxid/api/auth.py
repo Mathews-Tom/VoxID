@@ -7,14 +7,16 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
-_EXEMPT_PATHS = frozenset({"/health", "/docs", "/openapi.json"})
+# Only /api/* routes require authentication — everything else is UI or docs
+_API_PREFIX = "/api/"
+_AUTH_EXEMPT = frozenset({"/api/health"})
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
     """Validate API key from X-API-Key header or api_key query param.
 
     If VOXID_API_KEY env var is not set, auth is disabled (open access).
-    Health, docs, and openapi endpoints are always exempt.
+    Only /api/* endpoints require authentication.
     """
 
     async def dispatch(
@@ -26,7 +28,8 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         if api_key is None:
             return await call_next(request)
 
-        if request.url.path in _EXEMPT_PATHS:
+        path = request.url.path
+        if not path.startswith(_API_PREFIX) or path in _AUTH_EXEMPT:
             return await call_next(request)
 
         provided = request.headers.get("X-API-Key") or request.query_params.get(

@@ -1,0 +1,128 @@
+/* VoxID Script Annotation Styles */
+
+.ann-emphasis-strong {
+    font-weight: 700;
+    border-bottom: 2px solid var(--emphasis-s);
+}
+
+.ann-emphasis-moderate {
+    font-weight: 600;
+    border-bottom: 2px dashed var(--emphasis-m);
+}
+
+.ann-pause-short,
+.ann-pause-long {
+    display: inline-block;
+    vertical-align: middle;
+    background: var(--pause-color);
+    border-radius: 2px;
+    margin: 0 2px;
+    opacity: 0.6;
+    position: relative;
+}
+
+.ann-pause-short {
+    width: 3px;
+    height: 20px;
+}
+
+.ann-pause-long {
+    width: 6px;
+    height: 20px;
+}
+
+.ann-pause-short::after,
+.ann-pause-long::after {
+    position: absolute;
+    bottom: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    font-family: var(--mono);
+    color: var(--pause-color);
+    white-space: nowrap;
+}
+
+.ann-pause-short::after { content: "0.3s"; }
+.ann-pause-long::after { content: "0.8s"; }
+
+.ann-breath {
+    display: inline-block;
+    margin: 0 2px;
+    font-size: 14px;
+    opacity: 0.5;
+}
+
+.ann-breath::before { content: "\1FAC1"; } /* lungs emoji */
+
+.ann-speed-slow {
+    letter-spacing: 0.08em;
+    color: #6B8FBF;
+}
+
+.ann-speed-fast {
+    letter-spacing: -0.02em;
+    color: #BF6B8F;
+}
+
+.ann-drop {
+    opacity: 0.65;
+    font-size: 0.95em;
+}
+
+.ann-drop::before {
+    content: "\2193 ";
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+.ann-rise {
+    color: #4A90D9;
+}
+
+.ann-rise::before {
+    content: "\2191 ";
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+.ann-whisper {
+    font-style: italic;
+    opacity: 0.5;
+}
+
+/* ── Annotation Legend ────────────────── */
+
+.annotation-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--bg);
+    border-radius: var(--radius);
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.legend-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+.legend-swatch.emphasis-s { background: var(--emphasis-s); }
+.legend-swatch.emphasis-m { background: var(--emphasis-m); }
+.legend-swatch.pause { background: var(--pause-color); }
+.legend-swatch.slow { background: #6B8FBF; }
+.legend-swatch.fast { background: #BF6B8F; }
+.legend-swatch.drop { background: var(--text-2); opacity: 0.5; }
+.legend-swatch.rise { background: #4A90D9; }
+.legend-swatch.whisper { background: var(--text-2); opacity: 0.3; }
