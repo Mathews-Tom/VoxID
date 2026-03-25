@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncGenerator
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from sse_starlette.sse import EventSourceResponse
 
 from voxid.api.deps import get_voxid
@@ -146,3 +148,22 @@ async def generate_stream(
         }
 
     return EventSourceResponse(event_generator())
+
+
+@router.get("/audio")
+async def get_generated_audio(
+    path: str = Query(..., description="Absolute path to generated audio file"),
+    vox: VoxID = Depends(get_voxid),
+) -> FileResponse:
+    """Serve a generated audio file by its filesystem path.
+
+    Validates that the resolved path is within the VoxID store root
+    to prevent path traversal attacks.
+    """
+    resolved = Path(path).resolve()
+    store_root = vox._store._root.resolve()
+    if not str(resolved).startswith(str(store_root)):
+        raise HTTPException(status_code=403, detail="Path outside VoxID store")
+    if not resolved.exists():
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    return FileResponse(str(resolved), media_type="audio/wav")

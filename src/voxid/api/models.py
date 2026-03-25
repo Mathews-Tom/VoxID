@@ -173,3 +173,25 @@ class EnrollPromptsResponse(BaseModel):
 class CompleteSessionResponse(BaseModel):
     session_id: str
     styles_registered: list[str]
+
+
+# ── Consent ──────────────────────────────
+
+
+class ConsentStatementResponse(BaseModel):
+    identity_id: str
+    identity_name: str
+    statement: str
+
+
+class ConsentStatusResponse(BaseModel):
+    identity_id: str
+    has_consent: bool
+
+
+class ConsentRecordResponse(BaseModel):
+    identity_id: str
+    timestamp: str
+    scope: str
+    jurisdiction: str
+    document_hash: str
