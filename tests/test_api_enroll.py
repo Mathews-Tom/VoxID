@@ -57,7 +57,7 @@ def client(tmp_path: Path) -> TestClient:
 def seeded_client(client: TestClient) -> TestClient:
     """Client with a pre-created identity."""
     client.post(
-        "/identities",
+        "/api/identities",
         json={
             "id": "alice",
             "name": "Alice",
@@ -73,7 +73,7 @@ def _create_session(
     prompts: int = 2,
 ) -> dict[str, object]:
     resp = client.post(
-        "/enroll/sessions",
+        "/api/enroll/sessions",
         json={
             "identity_id": "alice",
             "styles": styles or ["phonetic"],
@@ -87,7 +87,7 @@ def _create_session(
 class TestCreateSession:
     def test_returns_201(self, seeded_client: TestClient) -> None:
         resp = seeded_client.post(
-            "/enroll/sessions",
+            "/api/enroll/sessions",
             json={
                 "identity_id": "alice",
                 "styles": ["phonetic"],
@@ -109,7 +109,7 @@ class TestCreateSession:
         self, client: TestClient,
     ) -> None:
         resp = client.post(
-            "/enroll/sessions",
+            "/api/enroll/sessions",
             json={
                 "identity_id": "nonexistent",
                 "styles": ["phonetic"],
@@ -122,14 +122,14 @@ class TestGetSession:
     def test_returns_status(self, seeded_client: TestClient) -> None:
         session = _create_session(seeded_client)
         sid = session["session_id"]
-        resp = seeded_client.get(f"/enroll/sessions/{sid}")
+        resp = seeded_client.get(f"/api/enroll/sessions/{sid}")
         assert resp.status_code == 200
         assert resp.json()["status"] == "in_progress"
 
     def test_not_found_returns_404(
         self, seeded_client: TestClient,
     ) -> None:
-        resp = seeded_client.get("/enroll/sessions/nonexistent")
+        resp = seeded_client.get("/api/enroll/sessions/nonexistent")
         assert resp.status_code == 404
 
 
@@ -139,7 +139,7 @@ class TestUploadSample:
         sid = session["session_id"]
         wav = _make_wav_bytes()
         resp = seeded_client.post(
-            f"/enroll/sessions/{sid}/samples",
+            f"/api/enroll/sessions/{sid}/samples",
             files={"file": ("sample.wav", wav, "audio/wav")},
         )
         assert resp.status_code == 200
@@ -152,7 +152,7 @@ class TestUploadSample:
         sid = session["session_id"]
         wav = _make_wav_bytes()
         resp = seeded_client.post(
-            f"/enroll/sessions/{sid}/samples",
+            f"/api/enroll/sessions/{sid}/samples",
             files={"file": ("sample.wav", wav, "audio/wav")},
         )
         qr = resp.json()["quality_report"]
@@ -165,7 +165,7 @@ class TestUploadSample:
         sid = session["session_id"]
         bad_wav = _make_bad_wav_bytes()
         resp = seeded_client.post(
-            f"/enroll/sessions/{sid}/samples",
+            f"/api/enroll/sessions/{sid}/samples",
             files={"file": ("bad.wav", bad_wav, "audio/wav")},
         )
         assert resp.status_code == 200
@@ -180,7 +180,7 @@ class TestUploadSample:
         sid = session["session_id"]
         wav = _make_wav_bytes()
         resp = seeded_client.post(
-            f"/enroll/sessions/{sid}/samples",
+            f"/api/enroll/sessions/{sid}/samples",
             files={"file": ("sample.wav", wav, "audio/wav")},
         )
         data = resp.json()
@@ -195,14 +195,14 @@ class TestUploadSample:
         # Upload one sample to exhaust prompts
         wav = _make_wav_bytes()
         seeded_client.post(
-            f"/enroll/sessions/{sid}/samples",
+            f"/api/enroll/sessions/{sid}/samples",
             files={"file": ("sample.wav", wav, "audio/wav")},
         )
         # Complete the session
-        seeded_client.post(f"/enroll/sessions/{sid}/complete")
+        seeded_client.post(f"/api/enroll/sessions/{sid}/complete")
         # Try to upload again
         resp = seeded_client.post(
-            f"/enroll/sessions/{sid}/samples",
+            f"/api/enroll/sessions/{sid}/samples",
             files={"file": ("sample.wav", wav, "audio/wav")},
         )
         assert resp.status_code == 409
@@ -214,10 +214,10 @@ class TestCompleteSession:
         sid = session["session_id"]
         wav = _make_wav_bytes()
         seeded_client.post(
-            f"/enroll/sessions/{sid}/samples",
+            f"/api/enroll/sessions/{sid}/samples",
             files={"file": ("sample.wav", wav, "audio/wav")},
         )
-        resp = seeded_client.post(f"/enroll/sessions/{sid}/complete")
+        resp = seeded_client.post(f"/api/enroll/sessions/{sid}/complete")
         assert resp.status_code == 200
         data = resp.json()
         assert "phonetic" in data["styles_registered"]
@@ -227,8 +227,8 @@ class TestCompleteSession:
     ) -> None:
         session = _create_session(seeded_client, prompts=1)
         sid = session["session_id"]
-        seeded_client.post(f"/enroll/sessions/{sid}/complete")
-        resp = seeded_client.post(f"/enroll/sessions/{sid}/complete")
+        seeded_client.post(f"/api/enroll/sessions/{sid}/complete")
+        resp = seeded_client.post(f"/api/enroll/sessions/{sid}/complete")
         assert resp.status_code == 409
 
 
@@ -236,23 +236,23 @@ class TestDeleteSession:
     def test_removes_data(self, seeded_client: TestClient) -> None:
         session = _create_session(seeded_client)
         sid = session["session_id"]
-        resp = seeded_client.delete(f"/enroll/sessions/{sid}")
+        resp = seeded_client.delete(f"/api/enroll/sessions/{sid}")
         assert resp.status_code == 204
         # Verify gone
-        resp = seeded_client.get(f"/enroll/sessions/{sid}")
+        resp = seeded_client.get(f"/api/enroll/sessions/{sid}")
         assert resp.status_code == 404
 
     def test_not_found_returns_404(
         self, seeded_client: TestClient,
     ) -> None:
-        resp = seeded_client.delete("/enroll/sessions/nonexistent")
+        resp = seeded_client.delete("/api/enroll/sessions/nonexistent")
         assert resp.status_code == 404
 
 
 class TestGetPrompts:
     def test_returns_list(self, seeded_client: TestClient) -> None:
         resp = seeded_client.get(
-            "/enroll/prompts", params={"style": "phonetic", "count": 3},
+            "/api/enroll/prompts", params={"style": "phonetic", "count": 3},
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -264,7 +264,7 @@ class TestGetPrompts:
         self, seeded_client: TestClient,
     ) -> None:
         resp = seeded_client.get(
-            "/enroll/prompts", params={"style": "nonexistent"},
+            "/api/enroll/prompts", params={"style": "nonexistent"},
         )
         assert resp.status_code in (422, 500)
 
@@ -278,11 +278,11 @@ class TestGetNextPrompt:
         # Upload a sample to change coverage
         wav = _make_wav_bytes()
         seeded_client.post(
-            f"/enroll/sessions/{sid}/samples",
+            f"/api/enroll/sessions/{sid}/samples",
             files={"file": ("sample.wav", wav, "audio/wav")},
         )
         resp = seeded_client.get(
-            "/enroll/prompts/next",
+            "/api/enroll/prompts/next",
             params={"session_id": sid},
         )
         assert resp.status_code == 200
@@ -294,7 +294,7 @@ class TestGetNextPrompt:
         self, seeded_client: TestClient,
     ) -> None:
         resp = seeded_client.get(
-            "/enroll/prompts/next",
+            "/api/enroll/prompts/next",
             params={"session_id": "nonexistent"},
         )
         assert resp.status_code == 404

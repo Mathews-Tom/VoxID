@@ -41,7 +41,7 @@ def ref_audio(tmp_path: Path) -> Path:
 
 def test_auth_valid_key_returns_200(auth_client: TestClient) -> None:
     response = auth_client.post(
-        "/identities",
+        "/api/identities",
         json={"id": "alice", "name": "Alice", "default_style": "conversational"},
         headers={"X-API-Key": "test-secret-key"},
     )
@@ -55,7 +55,7 @@ def test_auth_missing_key_returns_401(auth_client: TestClient) -> None:
     # TestClient propagates it as a Python exception.
     with pytest.raises(HTTPException) as exc_info:
         auth_client.post(
-            "/identities",
+            "/api/identities",
             json={"id": "alice", "name": "Alice", "default_style": "conversational"},
         )
 
@@ -65,7 +65,7 @@ def test_auth_missing_key_returns_401(auth_client: TestClient) -> None:
 def test_auth_wrong_key_returns_401(auth_client: TestClient) -> None:
     with pytest.raises(HTTPException) as exc_info:
         auth_client.post(
-            "/identities",
+            "/api/identities",
             json={"id": "alice", "name": "Alice", "default_style": "conversational"},
             headers={"X-API-Key": "wrong-key"},
         )
@@ -75,7 +75,7 @@ def test_auth_wrong_key_returns_401(auth_client: TestClient) -> None:
 
 def test_auth_key_in_query_param(auth_client: TestClient) -> None:
     response = auth_client.post(
-        "/identities?api_key=test-secret-key",
+        "/api/identities?api_key=test-secret-key",
         json={"id": "bob", "name": "Bob", "default_style": "conversational"},
     )
 
@@ -83,7 +83,7 @@ def test_auth_key_in_query_param(auth_client: TestClient) -> None:
 
 
 def test_auth_health_exempt(auth_client: TestClient) -> None:
-    response = auth_client.get("/health")
+    response = auth_client.get("/api/health")
 
     assert response.status_code == 200
 

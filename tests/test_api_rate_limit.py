@@ -41,12 +41,12 @@ def limited_client(
 
     # Seed identity and styles so generate requests succeed
     client.post(
-        "/identities",
+        "/api/identities",
         json={"id": "tom", "name": "Tom", "default_style": "conversational"},
     )
     for sid in ["conversational", "technical"]:
         client.post(
-            "/identities/tom/styles",
+            "/api/identities/tom/styles",
             json={
                 "id": sid,
                 "label": sid.title(),
@@ -67,7 +67,7 @@ def test_rate_limit_allows_under_threshold(limited_client: TestClient) -> None:
     statuses = []
     for i in range(3):
         response = limited_client.post(
-            "/generate",
+            "/api/generate",
             json={"text": f"Request number {i}.", "identity_id": "tom"},
         )
         statuses.append(response.status_code)
@@ -78,7 +78,7 @@ def test_rate_limit_allows_under_threshold(limited_client: TestClient) -> None:
 def test_rate_limit_returns_429_over_threshold(limited_client: TestClient) -> None:
     for i in range(3):
         limited_client.post(
-            "/generate",
+            "/api/generate",
             json={"text": f"Request number {i}.", "identity_id": "tom"},
         )
 
@@ -86,7 +86,7 @@ def test_rate_limit_returns_429_over_threshold(limited_client: TestClient) -> No
     # TestClient propagates it as a Python exception.
     with pytest.raises(HTTPException) as exc_info:
         limited_client.post(
-            "/generate",
+            "/api/generate",
             json={"text": "One request too many.", "identity_id": "tom"},
         )
 
@@ -94,7 +94,7 @@ def test_rate_limit_returns_429_over_threshold(limited_client: TestClient) -> No
 
 
 def test_rate_limit_non_generate_not_limited(limited_client: TestClient) -> None:
-    statuses = [limited_client.get("/health").status_code for _ in range(100)]
+    statuses = [limited_client.get("/api/health").status_code for _ in range(100)]
 
     assert all(s == 200 for s in statuses)
 
@@ -102,14 +102,14 @@ def test_rate_limit_non_generate_not_limited(limited_client: TestClient) -> None
 def test_rate_limit_retry_after_header(limited_client: TestClient) -> None:
     for i in range(3):
         limited_client.post(
-            "/generate",
+            "/api/generate",
             json={"text": f"Request number {i}.", "identity_id": "tom"},
         )
 
     # HTTPException raised in middleware carries headers; verify Retry-After.
     with pytest.raises(HTTPException) as exc_info:
         limited_client.post(
-            "/generate",
+            "/api/generate",
             json={"text": "Exceeds limit.", "identity_id": "tom"},
         )
 
