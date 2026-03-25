@@ -4,6 +4,8 @@ Voice Identity Management Platform — a local-first Python library, CLI, and RE
 
 VoxID sits between your application and TTS engines. It introduces **voice identities** — named entities that own multiple voice styles, each backed by precomputed speaker embeddings, versioned on disk, and automatically selected based on text content.
 
+<video src="https://github.com/user-attachments/assets/ab4e702f-fcfe-4c4e-b681-e96dac0c990c" width="100%" autoplay loop muted playsinline></video>
+
 ## Features
 
 - **Multi-style voice identities** — named entities with multiple registers (conversational, technical, narration, emphatic), persisted as TOML + SafeTensors
