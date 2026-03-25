@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoxID — Voice Identity Platform</title>
+    <link rel="stylesheet" href="/assets/css/enrollment.css">
+    <link rel="stylesheet" href="/assets/css/annotations.css">
+</head>
+<body>
+<div class="app-container">
+
+    <!-- Top Navigation -->
+    <div class="header">
+        <h1>VoxID</h1>
+        <nav class="top-nav">
+            <a href="/dashboard" class="nav-link" data-nav="dashboard">Identities</a>
+            <a href="/enrollment" class="nav-link" data-nav="enroll">Enroll</a>
+            <a href="/generate" class="nav-link" data-nav="generate">Generate</a>
+        </nav>
+        <span class="session-id" id="session-id-display"></span>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- Screen: Dashboard — Identity List           -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="dashboard" class="screen">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <h2 style="font-size:16px;font-weight:600">Voice Identities</h2>
+            <button class="btn btn-primary" id="btn-dashboard-new">+ New Identity</button>
+        </div>
+        <div id="dashboard-create-form" style="display:none" class="panel">
+            <div class="panel-label">Create New Identity</div>
+            <div class="form-group">
+                <label>ID (lowercase, no spaces)</label>
+                <input type="text" id="dash-new-id" placeholder="e.g. tom">
+            </div>
+            <div class="form-group">
+                <label>Display Name</label>
+                <input type="text" id="dash-new-name" placeholder="e.g. Tom">
+            </div>
+            <div class="controls" style="justify-content:flex-start">
+                <button class="btn btn-success" id="btn-dash-create">Create</button>
+                <button class="btn btn-ghost" id="btn-dash-cancel">Cancel</button>
+            </div>
+        </div>
+        <div id="dashboard-list"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- Screen: Identity Detail                     -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="identity-detail" class="screen">
+        <div class="nav-row" style="border:none;margin:0;padding:0 0 16px">
+            <button class="btn btn-ghost" id="btn-detail-back">← All Identities</button>
+            <button class="btn btn-danger" id="btn-detail-delete">Delete Identity</button>
+        </div>
+        <div id="identity-detail-content"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- Screen: Generation Playground               -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="generate" class="screen">
+        <h2 style="font-size:16px;font-weight:600;margin-bottom:16px">Audio Generation</h2>
+
+        <div class="panel">
+            <div class="panel-label">Configuration</div>
+            <div class="form-group">
+                <label>Identity</label>
+                <select id="gen-identity">
+                    <option value="">Select identity...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Style (leave blank for auto-routing)</label>
+                <select id="gen-style">
+                    <option value="">Auto-detect</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-label">Text</div>
+            <textarea id="gen-text" rows="4" style="width:100%;background:var(--bg);border:1px solid var(--surface-2);border-radius:var(--radius);color:var(--text);padding:12px;font-family:var(--font);font-size:14px;resize:vertical" placeholder="Enter text to generate speech..."></textarea>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="btn-generate" disabled>Generate</button>
+            <button class="btn btn-ghost" id="btn-gen-route" disabled>Route (dry run)</button>
+        </div>
+
+        <div id="gen-result"></div>
+
+        <div id="gen-audio-player" style="display:none" class="panel">
+            <div class="panel-label">Generated Audio</div>
+            <audio id="gen-audio" controls style="width:100%;margin-top:8px"></audio>
+            <div id="gen-meta" class="quality-metrics" style="margin-top:8px"></div>
+        </div>
+
+        <div id="gen-route-result"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- Enrollment: Steps Indicator                 -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="enroll-steps" class="steps" style="display:none">
+        <div class="step active">1. Select</div>
+        <div class="step">2. Consent</div>
+        <div class="step">3. Record</div>
+        <div class="step">4. Review</div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- Enrollment: Identity Selection              -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="select" class="screen">
+        <div class="panel">
+            <div class="panel-label">Identity</div>
+            <div class="form-group">
+                <label>Select an existing identity</label>
+                <select id="identity-select">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <button class="btn btn-ghost" id="btn-show-new" style="margin-bottom:12px">+ Create New</button>
+            <div id="new-identity-form" style="display:none">
+                <div class="form-group">
+                    <label>ID (lowercase, no spaces)</label>
+                    <input type="text" id="new-id" placeholder="e.g. tom">
+                </div>
+                <div class="form-group">
+                    <label>Display Name</label>
+                    <input type="text" id="new-name" placeholder="e.g. Tom">
+                </div>
+                <button class="btn btn-success" id="btn-create-identity">Create</button>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-label">Styles</div>
+            <div class="checkbox-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" class="style-checkbox" value="conversational" checked> conversational
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" class="style-checkbox" value="technical"> technical
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" class="style-checkbox" value="narration"> narration
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" class="style-checkbox" value="emphatic"> emphatic
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" class="style-checkbox" value="phonetic"> phonetic
+                </label>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-label">Prompts per style</div>
+            <select id="prompts-per-style">
+                <option value="3">3</option>
+                <option value="5" selected>5</option>
+                <option value="8">8</option>
+                <option value="10">10</option>
+            </select>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="btn-begin" disabled>Begin Enrollment</button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- Enrollment: Consent Recording               -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="consent" class="screen">
+        <div class="panel">
+            <div class="panel-label">Consent Statement</div>
+            <div class="script-text" id="consent-statement">Loading...</div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-label">Recording</div>
+            <div class="waveform-container">
+                <canvas class="waveform-canvas" id="consent-waveform"></canvas>
+                <span class="waveform-time" id="consent-time">00:00</span>
+            </div>
+        </div>
+
+        <div id="consent-quality"></div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="btn-consent-record">● Record</button>
+            <button class="btn btn-ghost" id="btn-consent-play" disabled>▶ Play</button>
+        </div>
+
+        <div class="nav-row">
+            <button class="btn btn-ghost" id="btn-consent-back">← Back</button>
+            <button class="btn btn-success" id="btn-consent-next" disabled>Next → Prompts</button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- Enrollment: Prompted Recording              -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="record" class="screen">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <span class="style-badge" id="style-badge">—</span>
+            <span class="prompt-counter" id="prompt-counter">— / —</span>
+        </div>
+
+        <div id="record-script"></div>
+
+        <div class="panel">
+            <div class="panel-label">Live Waveform</div>
+            <div class="waveform-container">
+                <canvas class="waveform-canvas" id="record-waveform"></canvas>
+                <span class="waveform-time" id="record-time">00:00</span>
+            </div>
+        </div>
+
+        <div id="record-meters"></div>
+
+        <div id="record-quality"></div>
+
+        <div class="controls">
+            <button class="btn btn-primary" id="btn-record">● Record</button>
+            <button class="btn btn-ghost" id="btn-record-play" disabled>▶ Play</button>
+            <button class="btn btn-ghost" id="btn-skip">⏭ Skip</button>
+        </div>
+
+        <div class="panel">
+            <div class="panel-label">Recording History</div>
+            <div id="record-history"></div>
+        </div>
+
+        <div class="nav-row">
+            <button class="btn btn-ghost" id="btn-record-back">← Back</button>
+            <button class="btn btn-ghost" id="btn-next-style">Summary →</button>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- Enrollment: Summary & Finalization          -->
+    <!-- ═══════════════════════════════════════════ -->
+    <div id="summary" class="screen">
+        <div class="panel">
+            <div class="panel-label">Enrollment Summary</div>
+            <div id="summary-content">Loading...</div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-success" id="btn-finalize">✓ Finalize Enrollment</button>
+        </div>
+
+        <div class="nav-row">
+            <button class="btn btn-ghost" id="btn-summary-back">← Back to Recording</button>
+            <span></span>
+        </div>
+    </div>
+
+</div>
+
+<script type="module" src="/assets/js/app.js"></script>
+</body>
+</html>

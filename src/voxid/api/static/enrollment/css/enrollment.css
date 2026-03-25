@@ -1,0 +1,693 @@
+/* VoxID Enrollment UI — Dark Theme */
+:root {
+    --bg:           #1A1A2E;
+    --surface:      #16213E;
+    --surface-2:    #1C2A4A;
+    --primary:      #E8634A;
+    --success:      #2ECC71;
+    --warning:      #F39C12;
+    --error:        #E74C3C;
+    --text:         #ECF0F1;
+    --text-2:       #95A5A6;
+    --wave-safe:    #1ABC9C;
+    --wave-hot:     #F39C12;
+    --wave-clip:    #E74C3C;
+    --emphasis-s:   #E8634A;
+    --emphasis-m:   #E8A34A;
+    --pause-color:  #5DADE2;
+    --radius:       8px;
+    --font:         'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono:         'JetBrains Mono', 'Fira Code', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+}
+
+/* ── Layout ──────────────────────────── */
+
+.app-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 20px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--surface-2);
+    margin-bottom: 24px;
+}
+
+.header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.top-nav {
+    display: flex;
+    gap: 4px;
+}
+
+.nav-link {
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-2);
+    text-decoration: none;
+    transition: all 0.15s;
+}
+
+.nav-link:hover { color: var(--text); background: var(--surface); }
+.nav-link.active { color: white; background: var(--primary); }
+
+.header .session-id {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.steps {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.step {
+    flex: 1;
+    padding: 8px 12px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    font-size: 13px;
+    color: var(--text-2);
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.step.active {
+    background: var(--primary);
+    color: white;
+    font-weight: 600;
+}
+
+.step.done {
+    background: var(--success);
+    color: white;
+}
+
+/* ── Panels ──────────────────────────── */
+
+.panel {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.panel-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-2);
+    margin-bottom: 12px;
+}
+
+/* ── Script Panel ────────────────────── */
+
+.script-text {
+    font-size: 20px;
+    line-height: 1.6;
+    color: var(--text);
+    padding: 16px 0;
+}
+
+.direction-notes {
+    font-size: 13px;
+    color: var(--text-2);
+    font-style: italic;
+    padding-top: 12px;
+    border-top: 1px solid var(--surface-2);
+}
+
+/* ── Waveform ────────────────────────── */
+
+.waveform-container {
+    position: relative;
+    background: var(--bg);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.waveform-canvas {
+    width: 100%;
+    height: 128px;
+    display: block;
+}
+
+.waveform-time {
+    position: absolute;
+    bottom: 4px;
+    right: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+/* ── Meters ───────────────────────────── */
+
+.meters-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.meter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.meter-label {
+    width: 60px;
+    color: var(--text-2);
+    font-size: 12px;
+}
+
+.meter-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--bg);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.meter-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.1s ease-out;
+    background: var(--success);
+}
+
+.meter-fill.hot { background: var(--warning); }
+.meter-fill.clip { background: var(--error); }
+
+.meter-value {
+    width: 72px;
+    text-align: right;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.speech-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-2);
+    transition: background 0.15s;
+}
+
+.speech-dot.active { background: var(--success); }
+
+/* ── Coverage ─────────────────────────── */
+
+.coverage-bar {
+    height: 8px;
+    background: var(--bg);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 0;
+}
+
+.coverage-fill {
+    height: 100%;
+    background: var(--success);
+    border-radius: 4px;
+    transition: width 0.3s;
+}
+
+.coverage-missing {
+    font-size: 12px;
+    color: var(--text-2);
+    font-family: var(--mono);
+}
+
+/* ── Controls ─────────────────────────── */
+
+.controls {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    padding: 16px 0;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font);
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) { filter: brightness(1.1); }
+
+.btn-success {
+    background: var(--success);
+    color: white;
+}
+
+.btn-success:hover:not(:disabled) { filter: brightness(1.1); }
+
+.btn-ghost {
+    background: transparent;
+    color: var(--text-2);
+    border: 1px solid var(--surface-2);
+}
+
+.btn-ghost:hover:not(:disabled) {
+    border-color: var(--text-2);
+    color: var(--text);
+}
+
+.btn-danger {
+    background: var(--error);
+    color: white;
+}
+
+/* ── Recording History ────────────────── */
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border-radius: var(--radius);
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.history-status {
+    font-size: 14px;
+}
+
+.history-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-2);
+}
+
+.history-meta {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.history-play {
+    background: none;
+    border: none;
+    color: var(--text-2);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+}
+
+.history-play:hover { color: var(--text); }
+
+/* ── Quality Result ───────────────────── */
+
+.quality-result {
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    margin: 12px 0;
+    font-size: 13px;
+}
+
+.quality-result.passed {
+    background: rgba(46, 204, 113, 0.12);
+    border: 1px solid rgba(46, 204, 113, 0.3);
+}
+
+.quality-result.failed {
+    background: rgba(231, 76, 60, 0.12);
+    border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.quality-metrics {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.rejection-reasons {
+    color: var(--error);
+    margin-top: 6px;
+}
+
+/* ── Forms ─────────────────────────────── */
+
+select, input[type="text"], input[type="number"] {
+    background: var(--bg);
+    border: 1px solid var(--surface-2);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 8px 12px;
+    font-size: 14px;
+    font-family: var(--font);
+    width: 100%;
+}
+
+select:focus, input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+
+label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-2);
+    margin-bottom: 4px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    accent-color: var(--primary);
+    width: 16px;
+    height: 16px;
+}
+
+/* ── Navigation ───────────────────────── */
+
+.nav-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 0;
+    border-top: 1px solid var(--surface-2);
+    margin-top: 16px;
+}
+
+/* ── Style Summary Cards ──────────────── */
+
+.style-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+}
+
+.style-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.style-card-title {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.best-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    background: var(--warning);
+    color: #1A1A2E;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+/* ── Prompt Counter ───────────────────── */
+
+.prompt-counter {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-2);
+}
+
+.style-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    background: var(--surface-2);
+    border-radius: 12px;
+    font-size: 12px;
+    color: var(--text);
+}
+
+/* ── Hidden screens ───────────────────── */
+
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ── Loading ──────────────────────────── */
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--surface-2);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: inline-block;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Noise Capture Overlay ────────────── */
+
+.noise-capture-overlay {
+    text-align: center;
+    padding: 24px;
+    color: var(--warning);
+    font-size: 15px;
+}
+
+/* ── Identity Cards (Dashboard) ───────── */
+
+.identity-card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+}
+
+.identity-card:hover {
+    border-color: var(--surface-2);
+    background: var(--surface-2);
+}
+
+.identity-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+}
+
+.identity-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.identity-name {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.identity-meta {
+    font-size: 12px;
+    color: var(--text-2);
+    display: flex;
+    gap: 12px;
+    margin-top: 2px;
+}
+
+.identity-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ── Identity Detail ──────────────────── */
+
+.detail-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.detail-title {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.detail-id {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-2);
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 8px 16px;
+    font-size: 13px;
+}
+
+.detail-label {
+    color: var(--text-2);
+}
+
+.style-item {
+    background: var(--bg);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.style-item-name {
+    font-weight: 600;
+    min-width: 120px;
+}
+
+.style-item-engine {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.style-item-audio {
+    margin-left: auto;
+}
+
+.inline-audio {
+    height: 32px;
+}
+
+/* ── Generate Playground ──────────────── */
+
+.route-result {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-top: 12px;
+}
+
+.route-scores {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.route-score-chip {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-family: var(--mono);
+    background: var(--bg);
+}
+
+.route-score-chip.selected {
+    background: var(--primary);
+    color: white;
+}
+
+/* ── Consent Status Badge ─────────────── */
+
+.consent-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.consent-badge.yes {
+    background: rgba(46, 204, 113, 0.2);
+    color: var(--success);
+}
+
+.consent-badge.no {
+    background: rgba(231, 76, 60, 0.2);
+    color: var(--error);
+}
+
+/* ── Empty State ──────────────────────── */
+
+.empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-2);
+}
+
+.empty-state-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
