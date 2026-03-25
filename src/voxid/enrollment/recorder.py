@@ -212,6 +212,12 @@ def detect_speech_energy(
     return merged
 
 
+def play_audio(audio: np.ndarray, sr: int) -> None:
+    """Play audio through the default output device and block until done."""
+    sd.play(audio, samplerate=sr)
+    sd.wait()
+
+
 def save_recording(
     audio: np.ndarray,
     sr: int,

@@ -19,7 +19,7 @@ from .enrollment.cli_ui import (
 from .enrollment.consent import ConsentManager
 from .enrollment.preprocessor import AudioPreprocessor
 from .enrollment.quality_gate import QualityGate
-from .enrollment.recorder import AudioRecorder, save_recording
+from .enrollment.recorder import AudioRecorder, play_audio, save_recording
 from .enrollment.script_generator import ScriptGenerator
 from .enrollment.session import (
     EnrollmentSample,
@@ -82,6 +82,29 @@ def identity_list() -> None:
         return
     for id_ in ids:
         click.echo(id_)
+
+
+@identity.command("delete")
+@click.argument("identity_id")
+@click.option("--force", is_flag=True, help="Skip confirmation prompt.")
+def identity_delete(identity_id: str, force: bool) -> None:
+    """Delete a voice identity and all its data."""
+    vox = VoxID()
+    # Verify identity exists before prompting
+    ids = vox.list_identities()
+    if identity_id not in ids:
+        raise click.ClickException(f"Identity {identity_id!r} not found.")
+    if not force:
+        click.confirm(
+            f"Delete identity {identity_id!r} and all associated styles, "
+            "recordings, and consent data? This cannot be undone",
+            abort=True,
+        )
+    vox.delete_identity(identity_id)
+    click.echo(
+        click.style("Deleted identity: ", fg="red")
+        + click.style(identity_id, bold=True)
+    )
 
 
 @cli.group()
@@ -601,6 +624,11 @@ def _handle_consent(
     report = gate.validate(audio, recorder.sample_rate)
     display_quality_result(report)
 
+    click.echo("  Press P to play back, any other key to continue")
+    if click.getchar() in ("p", "P"):
+        click.echo("  Playing...")
+        play_audio(audio, recorder.sample_rate)
+
     if not report.passed:
         raise click.ClickException(
             "Consent recording failed quality check. "
@@ -664,6 +692,11 @@ def _run_recording_loop(
         display_quality_result(report)
 
         if report.passed:
+            click.echo("  Press P to play back, any other key to continue")
+            if click.getchar() in ("p", "P"):
+                click.echo("  Playing...")
+                play_audio(audio, sr)
+
             processed, proc_sr = preprocessor.process(audio, sr)
             audio_dir = (
                 store_path / "enrollment_sessions"
@@ -690,8 +723,13 @@ def _run_recording_loop(
             if tracker:
                 display_coverage_bar(tracker.coverage_percent())
         else:
-            click.echo("  R to retry, S to skip")
+            click.echo("  P to play back, R to retry, S to skip")
             retry_key = click.getchar()
+            if retry_key in ("p", "P"):
+                click.echo("  Playing...")
+                play_audio(audio, sr)
+                click.echo("  R to retry, S to skip")
+                retry_key = click.getchar()
             if retry_key in ("s", "S"):
                 session.reject_sample(
                     session.current_prompt_index,
