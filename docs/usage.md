@@ -401,27 +401,28 @@ voxid serve --reload
 
 ### Endpoints
 
-| Method   | Path                             | Description                |
-| -------- | -------------------------------- | -------------------------- |
-| `POST`   | `/identities`                    | Create identity            |
-| `GET`    | `/identities`                    | List identities            |
-| `GET`    | `/identities/{id}`               | Get identity               |
-| `DELETE` | `/identities/{id}`               | Delete identity            |
-| `POST`   | `/identities/{id}/styles`        | Add style                  |
-| `GET`    | `/identities/{id}/styles`        | List styles                |
-| `POST`   | `/generate`                      | Single-shot generation     |
-| `POST`   | `/generate/segments`             | Segment generation         |
-| `POST`   | `/generate/manifest`             | Manifest-driven generation |
-| `POST`   | `/generate/stream`               | SSE streaming generation   |
-| `POST`   | `/route`                         | Route without generating   |
-| `GET`    | `/health`                        | Health check               |
-| `POST`   | `/enroll/sessions`               | Create enrollment session  |
-| `GET`    | `/enroll/sessions/{id}`          | Get session status         |
-| `POST`   | `/enroll/sessions/{id}/samples`  | Upload audio sample        |
-| `POST`   | `/enroll/sessions/{id}/complete` | Finalize enrollment        |
-| `DELETE` | `/enroll/sessions/{id}`          | Abandon session            |
-| `GET`    | `/enroll/prompts`                | Get prompts for style      |
-| `GET`    | `/enroll/prompts/next`           | Adaptive prompt            |
+| Method   | Path                                 | Description                |
+| -------- | ------------------------------------ | -------------------------- |
+| `POST`   | `/api/identities`                    | Create identity            |
+| `GET`    | `/api/identities`                    | List identities            |
+| `GET`    | `/api/identities/{id}`               | Get identity               |
+| `DELETE` | `/api/identities/{id}`               | Delete identity            |
+| `POST`   | `/api/identities/{id}/styles`        | Add style                  |
+| `GET`    | `/api/identities/{id}/styles`        | List styles                |
+| `POST`   | `/api/generate`                      | Single-shot generation     |
+| `POST`   | `/api/generate/segments`             | Segment generation         |
+| `POST`   | `/api/generate/manifest`             | Manifest-driven generation |
+| `POST`   | `/api/generate/stream`               | SSE streaming generation   |
+| `POST`   | `/api/route`                         | Route without generating   |
+| `GET`    | `/api/health`                        | Health check               |
+| `POST`   | `/api/enroll/sessions`               | Create enrollment session  |
+| `GET`    | `/api/enroll/sessions/{id}`          | Get session status         |
+| `POST`   | `/api/enroll/sessions/{id}/samples`  | Upload audio sample        |
+| `POST`   | `/api/enroll/sessions/{id}/complete` | Finalize enrollment        |
+| `DELETE` | `/api/enroll/sessions/{id}`          | Abandon session            |
+| `GET`    | `/api/enroll/prompts`                | Get prompts for style      |
+| `GET`    | `/api/enroll/prompts/next`           | Adaptive prompt            |
+| `GET`    | `/api/v1/serving/health`             | Multi-GPU dispatch status  |
 
 ### Authentication
 
@@ -448,7 +449,7 @@ Rate limiting keys on the `X-API-Key` header value, or falls back to client IP.
 **Create identity:**
 
 ```bash
-curl -X POST http://localhost:8765/identities \
+curl -X POST http://localhost:8765/api/identities \
   -H "Content-Type: application/json" \
   -d '{
     "id": "alice",
@@ -461,7 +462,7 @@ curl -X POST http://localhost:8765/identities \
 **Add style:**
 
 ```bash
-curl -X POST http://localhost:8765/identities/alice/styles \
+curl -X POST http://localhost:8765/api/identities/alice/styles \
   -H "Content-Type: application/json" \
   -d '{
     "id": "technical",
@@ -476,7 +477,7 @@ curl -X POST http://localhost:8765/identities/alice/styles \
 **Generate audio:**
 
 ```bash
-curl -X POST http://localhost:8765/generate \
+curl -X POST http://localhost:8765/api/generate \
   -H "Content-Type: application/json" \
   -d '{
     "text": "The cache hit ratio improved by 15%.",
@@ -487,7 +488,7 @@ curl -X POST http://localhost:8765/generate \
 **Segment generation:**
 
 ```bash
-curl -X POST http://localhost:8765/generate/segments \
+curl -X POST http://localhost:8765/api/generate/segments \
   -H "Content-Type: application/json" \
   -d '{
     "text": "Long form text here...",
@@ -499,7 +500,7 @@ curl -X POST http://localhost:8765/generate/segments \
 **Route (dry run):**
 
 ```bash
-curl -X POST http://localhost:8765/route \
+curl -X POST http://localhost:8765/api/route \
   -H "Content-Type: application/json" \
   -d '{
     "text": "Breaking: production database is down.",
@@ -510,7 +511,7 @@ curl -X POST http://localhost:8765/route \
 **Create enrollment session:**
 
 ```bash
-curl -X POST http://localhost:8765/enroll/sessions \
+curl -X POST http://localhost:8765/api/enroll/sessions \
   -H "Content-Type: application/json" \
   -d '{
     "identity_id": "alice",
@@ -522,20 +523,20 @@ curl -X POST http://localhost:8765/enroll/sessions \
 **Upload audio sample:**
 
 ```bash
-curl -X POST http://localhost:8765/enroll/sessions/{session_id}/samples \
+curl -X POST http://localhost:8765/api/enroll/sessions/{session_id}/samples \
   -F "file=@recording.wav"
 ```
 
 **Complete enrollment:**
 
 ```bash
-curl -X POST http://localhost:8765/enroll/sessions/{session_id}/complete
+curl -X POST http://localhost:8765/api/enroll/sessions/{session_id}/complete
 ```
 
 **SSE streaming:**
 
 ```bash
-curl -N -X POST http://localhost:8765/generate/stream \
+curl -N -X POST http://localhost:8765/api/generate/stream \
   -H "Content-Type: application/json" \
   -d '{
     "text": "Long form text...",
@@ -553,6 +554,218 @@ When the server is running, interactive API docs are available at:
 - Swagger UI: `http://localhost:8765/docs`
 - ReDoc: `http://localhost:8765/redoc`
 - OpenAPI JSON: `http://localhost:8765/openapi.json`
+
+---
+
+## Synthesis Detection
+
+Detect AI-generated or deepfake audio using the anti-spoofing ensemble.
+
+```python
+from voxid.security.spoofing import SynthesisDetector
+from voxid.security.spoofing.config import SpoofingConfig
+
+detector = SynthesisDetector(SpoofingConfig())
+decision = detector.detect(audio_array, sr)
+# decision.label: SpoofLabel.GENUINE | SYNTHETIC | UNCERTAIN
+# decision.score: float [0, 1] (spoofing probability)
+# decision.artifact_type: ArtifactType (VOCODER, DIFFUSION, etc.)
+# decision.confidence: float [0, 1]
+# decision.model_scores: {"aasist": 0.1, "rawnet2": 0.15, "lcnn": 0.08}
+```
+
+Diffusion artifact analysis detects synthesis-specific spectral patterns:
+
+```python
+from voxid.security.spoofing import DiffusionArtifactAnalyzer
+
+analyzer = DiffusionArtifactAnalyzer()
+analysis = analyzer.analyze(audio_array, sr)
+# analysis.spectral_smoothness, analysis.temporal_discontinuity
+# analysis.harmonic_regularity, analysis.suspicious: bool
+```
+
+---
+
+## Unified Tokenizer
+
+Engine-agnostic speaker representation combining acoustic and semantic tokens.
+
+```python
+from voxid.tokenizer import UnifiedTokenizer
+from voxid.tokenizer.config import TokenizerConfig
+
+tokenizer = UnifiedTokenizer(TokenizerConfig())
+
+# Tokenize a speaker's audio
+speaker = tokenizer.tokenize(
+    audio_path=Path("ref_audio.wav"),
+    identity_id="alice",
+    style_id="conversational",
+)
+# speaker.unified_embedding: NDArray — combined acoustic + semantic
+# speaker.acoustic.codes: (n_codebooks, T) at 40 Hz
+# speaker.semantic.codes: (T,) at 50 Hz
+
+# Compare speakers
+similarity = tokenizer.speaker_similarity(Path("a.wav"), Path("b.wav"))
+
+# Save/load tokenized speaker
+tokenizer.save_tokenized(speaker, Path("speaker.safetensors"))
+loaded = tokenizer.load_tokenized(Path("speaker.safetensors"))
+```
+
+Project unified embeddings to engine-specific space:
+
+```python
+from voxid.tokenizer import EngineProjector
+
+projector = EngineProjector()
+projector.fit("qwen3-tts", unified_embeddings, engine_embeddings)
+engine_emb = projector.project("qwen3-tts", speaker.unified_embedding)
+```
+
+---
+
+## Context-Aware Generation
+
+Rolling-window context tracking for prosodic continuity across long documents.
+
+```python
+from voxid.context import ContextManager, ContextConditioner
+from voxid.context.conditioning import ConditioningConfig
+
+# Track context across segments
+ctx_mgr = ContextManager(window_size=5)
+ctx_mgr.set_total_segments(10)
+
+# After generating each segment, record its prosodic features
+ctx_mgr.record(SegmentHistory(
+    text="First paragraph...",
+    style="conversational",
+    duration_ms=3200,
+    final_f0=180.0,
+    final_energy=0.05,
+    speaking_rate=3.2,
+))
+
+# Build context for next segment
+context = ctx_mgr.build_context(segment_index=1)
+# context.doc_position: 0.1 (10% through document)
+# context.history: [SegmentHistory, ...]
+
+# Condition generation based on context
+conditioner = ContextConditioner(ConditioningConfig(strength=0.5))
+result = conditioner.condition(context, boundary_type="sentence")
+# result.ssml_prefix: '<prosody rate="102%" pitch="+1st">'
+# result.context_params: {"speed": 1.02, "pitch_hz": 183}
+# result.stitch.pause_ms: 200, result.stitch.crossfade_ms: 20
+```
+
+---
+
+## Multi-GPU Serving
+
+Async GPU dispatcher for high-throughput TTS serving with vLLM integration.
+
+### Configuration
+
+Create `serving.toml`:
+
+```toml
+dispatch_strategy = "round_robin"  # or "least_loaded"
+health_check_interval_s = 30.0
+
+[[workers]]
+engine = "qwen3-tts"
+device = "cuda:0"
+max_batch_size = 4
+max_queue_depth = 16
+
+[[workers]]
+engine = "fish-speech"
+device = "cuda:1"
+max_batch_size = 2
+max_queue_depth = 8
+```
+
+### CLI
+
+```bash
+# Start server with multi-GPU dispatch
+voxid serve --port 8765 --config serving.toml
+```
+
+### REST API
+
+```bash
+# Check worker health
+curl http://localhost:8765/api/v1/serving/health
+# {"enabled": true, "total_workers": 2, "healthy_workers": 2, "workers": [...]}
+```
+
+### Python API
+
+```python
+from voxid.serving import GPUDispatcher, load_serving_config
+
+config = load_serving_config(Path("serving.toml"))
+dispatcher = GPUDispatcher(config)
+await dispatcher.start()
+
+result = await dispatcher.dispatch(GenerationRequest(
+    request_id="req-1",
+    text="Hello world",
+    prompt_path=Path("prompt.safetensors"),
+    engine="qwen3-tts",
+))
+# result.waveform: NDArray, result.sample_rate: int
+
+health = dispatcher.health()
+# health.total_workers, health.healthy_workers, health.workers
+
+await dispatcher.stop()
+```
+
+---
+
+## Cross-Lingual Enrollment
+
+Enroll and generate in multiple languages while maintaining speaker identity.
+
+### CLI
+
+```bash
+# Enroll with Chinese prompts
+voxid enroll alice --styles conversational --language zh
+
+# Enroll with Japanese prompts
+voxid enroll alice --styles narration --language ja
+```
+
+### Supported Languages by Engine
+
+| Engine      | Languages                              |
+| ----------- | -------------------------------------- |
+| Qwen3-TTS   | en, zh, ja, ko, de, fr, ru, pt, es, it |
+| Fish Speech | en, zh, ja, ko, es, pt, ar, ru, fr, de |
+| CosyVoice2  | en, zh, ja, ko, de, fr, ru, pt, es     |
+| IndexTTS-2  | en, zh                                 |
+| Chatterbox  | 22 languages                           |
+
+The dispatcher automatically routes requests to engines that support the requested language.
+
+---
+
+## Web Enrollment UI
+
+The web UI is served automatically when running `voxid serve`:
+
+- **Root:** http://localhost:8765/ — main application
+- **Enrollment:** http://localhost:8765/enrollment — guided enrollment with waveform visualization
+- **Dashboard:** http://localhost:8765/dashboard — identity overview
+
+Features: real-time waveform + spectrogram visualization, quality meters (SNR, loudness, spectral balance), annotation overlay, session persistence across page refreshes.
 
 ---
 
