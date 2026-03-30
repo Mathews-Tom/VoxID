@@ -11,6 +11,13 @@ import soundfile as sf
 from .adapters import TTSEngineAdapter, _registry
 from .adapters.protocol import EngineCapabilities
 from .config import VoxIDConfig, load_config
+from .context import (
+    ConditioningConfig,
+    ContextConditioner,
+    ContextManager,
+    SegmentHistory,
+)
+from .context.types import StitchParams
 from .models import ConsentRecord, Identity, Style
 from .router import StyleRouter
 from .schemas import GeneratedScene, GenerationResult, SceneManifest
@@ -23,6 +30,88 @@ from .segments import (
 )
 from .store import VoicePromptStore
 from .video.timing import estimate_word_timings, timings_to_tuples
+
+
+def _extract_segment_history(
+    text: str,
+    style: str,
+    waveform: np.ndarray,
+    sample_rate: int,
+    duration_ms: int,
+    trailing_window_ms: int = 200,
+) -> SegmentHistory:
+    """Extract prosodic features from a generated waveform's trailing window.
+
+    Computes:
+    - final_f0: estimated fundamental frequency from trailing autocorrelation
+    - final_energy: RMS energy of trailing window
+    - speaking_rate: words per second
+    """
+    word_count = len(text.split())
+    duration_s = duration_ms / 1000.0
+    speaking_rate = word_count / duration_s if duration_s > 0 else 0.0
+
+    # Trailing window
+    trailing_samples = int(sample_rate * trailing_window_ms / 1000)
+    trailing_samples = min(trailing_samples, len(waveform))
+    tail = waveform[-trailing_samples:].astype(np.float64)
+
+    # RMS energy
+    final_energy = float(np.sqrt(np.mean(tail**2))) if len(tail) > 0 else 0.0
+
+    # F0 estimation via autocorrelation (50-500 Hz range)
+    final_f0 = _estimate_f0(tail, sample_rate)
+
+    return SegmentHistory(
+        text=text,
+        style=style,
+        duration_ms=duration_ms,
+        final_f0=final_f0,
+        final_energy=final_energy,
+        speaking_rate=speaking_rate,
+    )
+
+
+def _estimate_f0(
+    signal: np.ndarray,
+    sample_rate: int,
+    f0_min: float = 50.0,
+    f0_max: float = 500.0,
+) -> float:
+    """Estimate fundamental frequency via autocorrelation.
+
+    Returns 0.0 if the signal is too short or silent.
+    """
+    if len(signal) < 2:
+        return 0.0
+
+    # Normalize
+    sig = signal - np.mean(signal)
+    rms = float(np.sqrt(np.mean(sig**2)))
+    if rms < 1e-6:
+        return 0.0
+
+    # Autocorrelation
+    min_lag = int(sample_rate / f0_max)
+    max_lag = int(sample_rate / f0_min)
+    max_lag = min(max_lag, len(sig) - 1)
+
+    if min_lag >= max_lag:
+        return 0.0
+
+    corr = np.correlate(sig, sig, mode="full")
+    corr = corr[len(sig) - 1 :]  # positive lags only
+    corr = corr / corr[0]  # normalize
+
+    search = corr[min_lag : max_lag + 1]
+    if len(search) == 0:
+        return 0.0
+
+    peak_idx = int(np.argmax(search)) + min_lag
+    if corr[peak_idx] < 0.2:
+        return 0.0
+
+    return float(sample_rate / peak_idx)
 
 
 def _get_adapter_for_engine(engine: str) -> type[TTSEngineAdapter]:
@@ -236,15 +325,22 @@ class VoxID:
         output_dir: Path | None = None,
         stitch: bool = True,
         export_plan_path: Path | None = None,
+        conditioning: ConditioningConfig | None = None,
     ) -> SegmentGenerationResult:
         """Generate audio for long-form text with per-segment routing.
 
         1. Segment the text (TextSegmenter)
         2. Route each segment (StyleRouter)
         3. Smooth style transitions (StyleSmoother)
-        4. Generate audio per segment
-        5. Optionally stitch into a single file
-        6. Optionally export the generation plan to JSON
+        4. Build generation context and conditioning signals
+        5. Generate audio per segment with context params
+        6. Optionally stitch with context-derived pauses
+        7. Optionally export the generation plan to JSON
+
+        Args:
+            conditioning: optional ConditioningConfig to enable
+                context-aware generation. When None, the pipeline
+                behaves identically to the pre-Phase-14 path.
 
         Returns SegmentGenerationResult with per-segment audio paths,
         stitched path, and the generation plan.
@@ -279,9 +375,16 @@ class VoxID:
             )
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        # Context management (Phase 14)
+        ctx_mgr = ContextManager()
+        conditioner = ContextConditioner(conditioning) if conditioning else None
+        ctx_mgr.set_total_segments(len(plan))
+        ctx_mgr.set_style_sequence([item.style for item in plan])
+
         segment_results: list[SegmentResult] = []
         audio_segments: list[tuple[np.ndarray, int]] = []
         boundary_types: list[str] = []
+        stitch_params_list: list[StitchParams] = []
 
         for item in plan:
             style_obj = self._store.get_style(identity_id, item.style)
@@ -292,10 +395,30 @@ class VoxID:
             adapter_cls = _get_adapter_for_engine(eng)
             adapter = adapter_cls()
 
+            # Build conditioning for this segment
+            gen_context = ctx_mgr.build_context(item.index)
+            cond_result = (
+                conditioner.condition(gen_context, item.boundary_type)
+                if conditioner
+                else None
+            )
+
+            # Apply text-level conditioning (SSML wrapping)
+            gen_text = item.text
+            context_params: dict[str, float] | None = None
+            if cond_result:
+                if cond_result.ssml_prefix or cond_result.ssml_suffix:
+                    gen_text = (
+                        cond_result.ssml_prefix + item.text + cond_result.ssml_suffix
+                    )
+                if cond_result.context_params:
+                    context_params = cond_result.context_params
+
             waveform, sr = adapter.generate(
-                item.text,
+                gen_text,
                 prompt_path,
                 language=style_obj.language,
+                context_params=context_params,
             )
 
             seg_filename = f"segment_{item.index:04d}.wav"
@@ -303,6 +426,16 @@ class VoxID:
             sf.write(str(seg_path), waveform, sr)
 
             duration_ms = int(len(waveform) / sr * 1000)
+
+            # Extract trailing prosodic features and record history
+            history_entry = _extract_segment_history(
+                text=item.text,
+                style=item.style,
+                waveform=waveform,
+                sample_rate=sr,
+                duration_ms=duration_ms,
+            )
+            ctx_mgr.record(history_entry)
 
             segment_results.append(
                 SegmentResult(
@@ -317,6 +450,10 @@ class VoxID:
             )
             audio_segments.append((waveform, sr))
             boundary_types.append(item.boundary_type)
+            if cond_result:
+                stitch_params_list.append(cond_result.stitch)
+            else:
+                stitch_params_list.append(StitchParams(pause_ms=200))
 
         stitched_path: Path | None = None
         if stitch and audio_segments:
@@ -326,6 +463,7 @@ class VoxID:
                 audio_segments=audio_segments,
                 boundary_types=boundary_types,
                 output_path=stitched_output,
+                stitch_params=stitch_params_list if conditioner else None,
             )
 
         if export_plan_path is not None:

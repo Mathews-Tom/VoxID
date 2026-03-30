@@ -291,6 +291,7 @@ class Qwen3TTSAdapter:
         text: str,
         prompt_path: Path,
         language: str = "en",
+        context_params: dict[str, float] | None = None,
     ) -> tuple[np.ndarray, int]:
         # Detect backend from prompt metadata if possible
         _, metadata = load_prompt(prompt_path)

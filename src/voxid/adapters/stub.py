@@ -50,6 +50,7 @@ class StubAdapter:
         text: str,
         prompt_path: Path,
         language: str = "en",
+        context_params: dict[str, float] | None = None,
     ) -> tuple[np.ndarray, int]:
         sr = 24000
         duration = max(0.5, len(text) * 0.05)  # ~50ms per char
