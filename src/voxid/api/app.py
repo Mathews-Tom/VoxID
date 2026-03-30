@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 _STATIC_DIR = Path(__file__).parent / "static" / "enrollment"
 _INDEX_HTML = _STATIC_DIR / "index.html"
+_FAVICON = _STATIC_DIR / "favicon.svg"
 
 
 @asynccontextmanager
@@ -62,6 +63,13 @@ def create_app() -> FastAPI:
 
     # Serving health endpoint (multi-GPU)
     app.include_router(serving_router, prefix="/api/v1")
+
+    # Favicon
+    if _FAVICON.exists():
+
+        @app.get("/favicon.ico", include_in_schema=False)
+        async def favicon() -> FileResponse:
+            return FileResponse(_FAVICON, media_type="image/svg+xml")
 
     # UI routes — serve index.html for client-side routing
     if _INDEX_HTML.exists():
