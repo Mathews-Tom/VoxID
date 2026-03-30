@@ -39,6 +39,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+tokenizer = [
+    "transformers>=4.40",
+    "scikit-learn>=1.4",
+    "torch>=2.0",
+    "huggingface-hub>=0.20",
+]
 qwen3-tts = ["qwen-tts>=0.1"]
 qwen3-tts-mlx = [
     "mlx-audio>=0.4",
@@ -110,6 +116,38 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "webrtcvad"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "transformers"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "transformers.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sklearn"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "sklearn.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "huggingface_hub"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "huggingface_hub.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "decoder"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "decoder.*"
 ignore_missing_imports = true
 
 [tool.ruff]
