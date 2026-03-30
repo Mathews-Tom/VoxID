@@ -429,9 +429,35 @@ def import_cmd(archive: str, key: str | None) -> None:
 @click.option("--host", default="0.0.0.0", show_default=True)
 @click.option("--port", default=8765, show_default=True, type=int)
 @click.option("--reload", is_flag=True, default=False)
-def serve(host: str, port: int, reload: bool) -> None:
-    """Start the VoxID REST API server."""
+@click.option(
+    "--config",
+    "serving_config_path",
+    default=None,
+    type=click.Path(exists=True),
+    help="Path to serving.toml for multi-GPU dispatch.",
+)
+def serve(
+    host: str,
+    port: int,
+    reload: bool,
+    serving_config_path: str | None,
+) -> None:
+    """Start the VoxID REST API server.
+
+    With --config, enables multi-GPU dispatch via GPUDispatcher.
+    Without it, uses the default in-process generation path.
+    """
     import uvicorn
+
+    if serving_config_path is not None:
+        import os
+
+        os.environ["VOXID_SERVING_CONFIG"] = serving_config_path
+        click.echo(
+            click.style("Multi-GPU serving: ", fg="cyan")
+            + serving_config_path
+        )
+
     click.echo(
         click.style("Starting VoxID API server", fg="green")
         + f" on {host}:{port}"
