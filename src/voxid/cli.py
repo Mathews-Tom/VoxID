@@ -483,6 +483,12 @@ def serve(host: str, port: int, reload: bool) -> None:
     default=False,
     help="Skip consent recording if valid consent already exists.",
 )
+@click.option(
+    "--language",
+    type=str,
+    default=None,
+    help="ISO 639-1 language code (e.g. zh, ja, ko, es). Default: English.",
+)
 def enroll(
     identity_id: str,
     styles: str,
@@ -491,6 +497,7 @@ def enroll(
     device: str | None,
     import_audio: str | None,
     skip_consent: bool,
+    language: str | None,
 ) -> None:
     """Enroll a voice identity with guided recording or audio import."""
     vox = VoxID()
@@ -532,18 +539,54 @@ def enroll(
     )
 
     # Create or resume session
+    is_multilingual = language is not None and language != "en"
+
     if resume is not None:
         session = session_store.load(resume)
         click.echo(
             click.style("Resumed session: ", fg="cyan") + resume,
         )
     else:
-        prompts = {
-            s: generator.select_prompts(
-                s, count=prompts_per_style,
+        if is_multilingual and language is not None:
+            from .enrollment.multilingual import (
+                MultilingualScriptGenerator,
+                get_language_config,
             )
-            for s in style_list
-        }
+            from .enrollment.script_generator import EnrollmentPrompt
+
+            try:
+                get_language_config(language)
+            except KeyError as exc:
+                raise click.ClickException(str(exc)) from exc
+
+            ml_gen = MultilingualScriptGenerator()
+            prompts: dict[str, list[EnrollmentPrompt]] = {}
+            for s in style_list:
+                ml_prompts = ml_gen.select_prompts(
+                    language, count=prompts_per_style,
+                )
+                prompts[s] = [
+                    EnrollmentPrompt(
+                        text=mp.text,
+                        style=s,
+                        phonemes=mp.phonemes,
+                        unique_phoneme_count=mp.unique_phoneme_count,
+                        nasal_count=0,
+                        affricate_count=0,
+                    )
+                    for mp in ml_prompts
+                ]
+            click.echo(
+                click.style("Language: ", fg="cyan") + language,
+            )
+        else:
+            prompts = {
+                s: generator.select_prompts(
+                    s, count=prompts_per_style,
+                )
+                for s in style_list
+            }
+
         session = EnrollmentSession(
             session_id=str(uuid.uuid4())[:8],
             identity_id=identity_id,
@@ -554,6 +597,7 @@ def enroll(
             status=SessionStatus.IN_PROGRESS,
             prompts_per_style=prompts_per_style,
             prompts=prompts,
+            language=language,
         )
 
     display_session_header(identity_id, style_list, prompts_per_style)
