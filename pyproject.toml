@@ -39,6 +39,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+spoofing = [
+    "torch>=2.0",
+    "librosa>=0.10",
+    "scipy>=1.12",
+]
 tokenizer = [
     "transformers>=4.40",
     "scikit-learn>=1.4",
@@ -96,6 +101,26 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "torch"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "torch.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "librosa"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "librosa.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "scipy"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "scipy.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
