@@ -1,0 +1,50 @@
+[
+  {
+    "text": "The quick brown fox jumps over the lazy dog near the church.",
+    "phonemes": ["ð", "ə", "k", "w", "ɪ", "k", "b", "ɹ", "aʊ", "n", "f", "ɒ", "k", "s", "dʒ", "ʌ", "m", "p", "s", "oʊ", "v", "ɜː", "ð", "ə", "l", "eɪ", "z", "iː", "d", "ɒ", "ɡ", "n", "ɪ", "ɜː", "ð", "ə", "tʃ", "ɜː", "tʃ"]
+  },
+  {
+    "text": "She measured the beige garage door with a thin wire and a huge wrench.",
+    "phonemes": ["ʃ", "iː", "m", "ɛ", "ʒ", "ɜː", "d", "ð", "ə", "b", "eɪ", "ʒ", "ɡ", "ə", "ɹ", "ɑː", "ʒ", "d", "ɔː", "w", "ɪ", "θ", "ə", "θ", "ɪ", "n", "w", "aɪ", "ɜː", "æ", "n", "d", "ə", "h", "j", "uː", "dʒ", "ɹ", "ɛ", "n", "tʃ"]
+  },
+  {
+    "text": "Young Nathan sang along to the ringing bells in the evening.",
+    "phonemes": ["j", "ʌ", "ŋ", "n", "eɪ", "θ", "ə", "n", "s", "æ", "ŋ", "ə", "l", "ɒ", "ŋ", "t", "uː", "ð", "ə", "ɹ", "ɪ", "ŋ", "ɪ", "ŋ", "b", "ɛ", "l", "z", "ɪ", "n", "ð", "iː", "iː", "v", "n", "ɪ", "ŋ"]
+  },
+  {
+    "text": "A joyful child chose to play with the wooden toy on the floor.",
+    "phonemes": ["ə", "dʒ", "ɔɪ", "f", "ʊ", "l", "tʃ", "aɪ", "l", "d", "tʃ", "oʊ", "z", "t", "uː", "p", "l", "eɪ", "w", "ɪ", "θ", "ð", "ə", "w", "ʊ", "d", "ɪ", "n", "t", "ɔɪ", "ɒ", "n", "ð", "ə", "f", "l", "ɔː"]
+  },
+  {
+    "text": "Father thought about washing the author's clothes before leaving.",
+    "phonemes": ["f", "ɑː", "ð", "ɜː", "θ", "ɔː", "t", "ə", "b", "aʊ", "t", "w", "ɒ", "ʃ", "ɪ", "ŋ", "ð", "iː", "ɔː", "θ", "ɜː", "z", "k", "l", "oʊ", "ð", "z", "b", "ɪ", "f", "ɔː", "l", "iː", "v", "ɪ", "ŋ"]
+  },
+  {
+    "text": "The vision of leisure and pleasure was a treasure beyond measure.",
+    "phonemes": ["ð", "ə", "v", "ɪ", "ʒ", "ə", "n", "ɒ", "v", "l", "ɛ", "ʒ", "ɜː", "æ", "n", "d", "p", "l", "ɛ", "ʒ", "ɜː", "w", "ɒ", "z", "ə", "t", "ɹ", "ɛ", "ʒ", "ɜː", "b", "ɪ", "j", "ɒ", "n", "d", "m", "ɛ", "ʒ", "ɜː"]
+  },
+  {
+    "text": "My brother found the unusual path through the thick jungle growth.",
+    "phonemes": ["m", "aɪ", "b", "ɹ", "ʌ", "ð", "ɜː", "f", "aʊ", "n", "d", "ð", "iː", "ʌ", "n", "j", "uː", "ʒ", "uː", "ə", "l", "p", "ɑː", "θ", "θ", "ɹ", "uː", "ð", "ə", "θ", "ɪ", "k", "dʒ", "ʌ", "ŋ", "ɡ", "ə", "l", "ɡ", "ɹ", "oʊ", "θ"]
+  },
+  {
+    "text": "Every morning the birds chirp while the gentle breeze flows over hills.",
+    "phonemes": ["ɛ", "v", "ɹ", "iː", "m", "ɔː", "n", "ɪ", "ŋ", "ð", "ə", "b", "ɜː", "d", "z", "tʃ", "ɜː", "p", "w", "aɪ", "l", "ð", "ə", "dʒ", "ɛ", "n", "t", "ə", "l", "b", "ɹ", "iː", "z", "f", "l", "oʊ", "z", "oʊ", "v", "ɜː", "h", "ɪ", "l", "z"]
+  },
+  {
+    "text": "The judge rejected the casual approach to the crucial decision.",
+    "phonemes": ["ð", "ə", "dʒ", "ʌ", "dʒ", "ɹ", "ɪ", "dʒ", "ɛ", "k", "t", "ɪ", "d", "ð", "ə", "k", "æ", "ʒ", "uː", "ə", "l", "ə", "p", "ɹ", "oʊ", "tʃ", "t", "uː", "ð", "ə", "k", "ɹ", "uː", "ʃ", "ə", "l", "d", "ɪ", "s", "ɪ", "ʒ", "ə", "n"]
+  },
+  {
+    "text": "We should hang the painting above the bookshelf in the new room.",
+    "phonemes": ["w", "iː", "ʃ", "ʊ", "d", "h", "æ", "ŋ", "ð", "ə", "p", "eɪ", "n", "t", "ɪ", "ŋ", "ə", "b", "ʌ", "v", "ð", "ə", "b", "ʊ", "k", "ʃ", "ɛ", "l", "f", "ɪ", "n", "ð", "ə", "n", "j", "uː", "ɹ", "uː", "m"]
+  },
+  {
+    "text": "The thousand authors thought through their themes with enthusiasm.",
+    "phonemes": ["ð", "ə", "θ", "aʊ", "z", "ə", "n", "d", "ɔː", "θ", "ɜː", "z", "θ", "ɔː", "t", "θ", "ɹ", "uː", "ð", "ɛ", "ɜː", "θ", "iː", "m", "z", "w", "ɪ", "θ", "ɪ", "n", "θ", "j", "uː", "z", "iː", "æ", "z", "ə", "m"]
+  },
+  {
+    "text": "Put the cookie and the goose foot pudding on the wooden hook.",
+    "phonemes": ["p", "ʊ", "t", "ð", "ə", "k", "ʊ", "k", "iː", "æ", "n", "d", "ð", "ə", "ɡ", "uː", "s", "f", "ʊ", "t", "p", "ʊ", "d", "ɪ", "ŋ", "ɒ", "n", "ð", "ə", "w", "ʊ", "d", "ɪ", "n", "h", "ʊ", "k"]
+  }
+]

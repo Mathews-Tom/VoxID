@@ -1,0 +1,34 @@
+[
+  {
+    "text": "Le jeune garçon jouait du piano pendant que sa sœur chantait joyeusement.",
+    "phonemes": ["l", "ə", "ʒ", "œ", "n", "ɡ", "a", "ʁ", "s", "ɔ̃", "ʒ", "u", "ɛ", "d", "y", "p", "i", "a", "n", "o", "p", "ɑ̃", "d", "ɑ̃", "k", "ə", "s", "a", "s", "œ", "ʁ", "ʃ", "ɑ̃", "t", "ɛ", "ʒ", "w", "a", "j", "ø", "z", "m", "ɑ̃"]
+  },
+  {
+    "text": "Hier soir nous avons dîné dans un excellent restaurant près de la gare.",
+    "phonemes": ["i", "ɛ", "ʁ", "s", "w", "a", "ʁ", "n", "u", "z", "a", "v", "ɔ̃", "d", "i", "n", "e", "d", "ɑ̃", "z", "œ̃", "ɛ", "k", "s", "ɛ", "l", "ɑ̃", "ʁ", "ɛ", "s", "t", "o", "ʁ", "ɑ̃", "p", "ʁ", "ɛ", "d", "ə", "l", "a", "ɡ", "a", "ʁ"]
+  },
+  {
+    "text": "Les enfants ont ramassé des champignons dans la forêt en automne.",
+    "phonemes": ["l", "e", "z", "ɑ̃", "f", "ɑ̃", "ɔ̃", "ʁ", "a", "m", "a", "s", "e", "d", "e", "ʃ", "ɑ̃", "p", "i", "ɲ", "ɔ̃", "d", "ɑ̃", "l", "a", "f", "ɔ", "ʁ", "ɛ", "ɑ̃", "n", "o", "t", "ɔ", "n"]
+  },
+  {
+    "text": "Mon voisin collectionne les vieux livres de philosophie et de science.",
+    "phonemes": ["m", "ɔ̃", "v", "w", "a", "z", "ɛ̃", "k", "ɔ", "l", "ɛ", "k", "s", "i", "ɔ", "n", "l", "e", "v", "j", "ø", "l", "i", "v", "ʁ", "ə", "d", "ə", "f", "i", "l", "ɔ", "z", "ɔ", "f", "i", "e", "d", "ə", "s", "i", "ɑ̃", "s"]
+  },
+  {
+    "text": "La boulangère prépare chaque matin du pain frais et des croissants.",
+    "phonemes": ["l", "a", "b", "u", "l", "ɑ̃", "ʒ", "ɛ", "ʁ", "p", "ʁ", "e", "p", "a", "ʁ", "ʃ", "a", "k", "m", "a", "t", "ɛ̃", "d", "y", "p", "ɛ̃", "f", "ʁ", "ɛ", "e", "d", "e", "k", "ʁ", "w", "a", "s", "ɑ̃"]
+  },
+  {
+    "text": "Pendant les vacances nous avons visité plusieurs musées magnifiques.",
+    "phonemes": ["p", "ɑ̃", "d", "ɑ̃", "l", "e", "v", "a", "k", "ɑ̃", "s", "n", "u", "z", "a", "v", "ɔ̃", "v", "i", "z", "i", "t", "e", "p", "l", "y", "z", "j", "œ", "ʁ", "m", "y", "z", "e", "m", "a", "ɲ", "i", "f", "i", "k"]
+  },
+  {
+    "text": "Le professeur explique la grammaire française avec beaucoup de patience.",
+    "phonemes": ["l", "ə", "p", "ʁ", "ɔ", "f", "ɛ", "s", "œ", "ʁ", "ɛ", "k", "s", "p", "l", "i", "k", "l", "a", "ɡ", "ʁ", "a", "m", "ɛ", "ʁ", "f", "ʁ", "ɑ̃", "s", "ɛ", "z", "a", "v", "ɛ", "k", "b", "o", "k", "u", "d", "ə", "p", "a", "s", "i", "ɑ̃", "s"]
+  },
+  {
+    "text": "L'ingénieur conçoit un nouveau pont qui enjambe la rivière principale.",
+    "phonemes": ["l", "ɛ̃", "ʒ", "e", "n", "i", "œ", "ʁ", "k", "ɔ̃", "s", "w", "a", "œ̃", "n", "u", "v", "o", "p", "ɔ̃", "k", "i", "ɑ̃", "ʒ", "ɑ̃", "b", "l", "a", "ʁ", "i", "v", "j", "ɛ", "ʁ", "p", "ʁ", "ɛ̃", "s", "i", "p", "a", "l"]
+  }
+]

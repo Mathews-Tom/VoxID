@@ -1,0 +1,34 @@
+[
+  {
+    "text": "El niño pequeño jugaba con su perro marrón cerca del parque grande.",
+    "phonemes": ["e", "l", "n", "i", "ɲ", "o", "p", "e", "k", "e", "ɲ", "o", "x", "u", "ɡ", "a", "b", "a", "k", "o", "n", "s", "u", "p", "e", "r", "o", "m", "a", "r", "o", "n", "θ", "e", "ɾ", "k", "a", "d", "e", "l", "p", "a", "ɾ", "k", "e", "ɡ", "ɾ", "a", "n", "d", "e"]
+  },
+  {
+    "text": "La muchacha chilena llegó ayer por la noche en un vuelo directo.",
+    "phonemes": ["l", "a", "m", "u", "tʃ", "a", "tʃ", "a", "tʃ", "i", "l", "e", "n", "a", "ʎ", "e", "ɡ", "o", "a", "ʝ", "e", "ɾ", "p", "o", "ɾ", "l", "a", "n", "o", "tʃ", "e", "e", "n", "u", "n", "b", "u", "e", "l", "o", "d", "i", "ɾ", "e", "k", "t", "o"]
+  },
+  {
+    "text": "Mi abuelo siempre cuenta historias fascinantes sobre sus viajes.",
+    "phonemes": ["m", "i", "a", "b", "u", "e", "l", "o", "s", "i", "e", "m", "p", "ɾ", "e", "k", "u", "e", "n", "t", "a", "i", "s", "t", "o", "ɾ", "i", "a", "s", "f", "a", "s", "θ", "i", "n", "a", "n", "t", "e", "s", "s", "o", "b", "ɾ", "e", "s", "u", "s", "b", "i", "a", "x", "e", "s"]
+  },
+  {
+    "text": "Los músicos tocaron una canción muy alegre en la fiesta de anoche.",
+    "phonemes": ["l", "o", "s", "m", "u", "s", "i", "k", "o", "s", "t", "o", "k", "a", "ɾ", "o", "n", "u", "n", "a", "k", "a", "n", "θ", "i", "o", "n", "m", "u", "i", "a", "l", "e", "ɡ", "ɾ", "e", "e", "n", "l", "a", "f", "i", "e", "s", "t", "a", "d", "e", "a", "n", "o", "tʃ", "e"]
+  },
+  {
+    "text": "Ayer fuimos juntos al mercado para comprar frutas y verduras frescas.",
+    "phonemes": ["a", "ʝ", "e", "ɾ", "f", "u", "i", "m", "o", "s", "x", "u", "n", "t", "o", "s", "a", "l", "m", "e", "ɾ", "k", "a", "d", "o", "p", "a", "ɾ", "a", "k", "o", "m", "p", "ɾ", "a", "ɾ", "f", "ɾ", "u", "t", "a", "s", "i", "b", "e", "ɾ", "d", "u", "ɾ", "a", "s", "f", "ɾ", "e", "s", "k", "a", "s"]
+  },
+  {
+    "text": "El jefe de la empresa explicó el nuevo proyecto con gran entusiasmo.",
+    "phonemes": ["e", "l", "x", "e", "f", "e", "d", "e", "l", "a", "e", "m", "p", "ɾ", "e", "s", "a", "e", "k", "s", "p", "l", "i", "k", "o", "e", "l", "n", "u", "e", "b", "o", "p", "ɾ", "o", "ʝ", "e", "k", "t", "o", "k", "o", "n", "ɡ", "ɾ", "a", "n", "e", "n", "t", "u", "s", "i", "a", "s", "m", "o"]
+  },
+  {
+    "text": "La montaña tenía nieve en su cumbre y un río corría por el valle.",
+    "phonemes": ["l", "a", "m", "o", "n", "t", "a", "ɲ", "a", "t", "e", "n", "i", "a", "n", "i", "e", "b", "e", "e", "n", "s", "u", "k", "u", "m", "b", "ɾ", "e", "i", "u", "n", "r", "i", "o", "k", "o", "r", "i", "a", "p", "o", "ɾ", "e", "l", "b", "a", "ʎ", "e"]
+  },
+  {
+    "text": "Los investigadores descubrieron una nueva especie en la selva tropical.",
+    "phonemes": ["l", "o", "s", "i", "n", "b", "e", "s", "t", "i", "ɡ", "a", "d", "o", "ɾ", "e", "s", "d", "e", "s", "k", "u", "b", "ɾ", "i", "e", "ɾ", "o", "n", "u", "n", "a", "n", "u", "e", "b", "a", "e", "s", "p", "e", "θ", "i", "e", "e", "n", "l", "a", "s", "e", "l", "b", "a", "t", "ɾ", "o", "p", "i", "k", "a", "l"]
+  }
+]
