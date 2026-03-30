@@ -113,6 +113,19 @@ class ArchiveExporter:
                     hashlib.sha256(ref_text).hexdigest()
                 )
 
+                # unified.safetensors (engine-agnostic identity tokens)
+                unified_path = self._store.get_unified_path(
+                    identity_id, style_id,
+                )
+                if unified_path is not None and unified_path.exists():
+                    zf.write(
+                        unified_path,
+                        f"{style_prefix}/unified.safetensors",
+                    )
+                    file_hashes[
+                        f"{style_prefix}/unified.safetensors"
+                    ] = _file_sha256(unified_path)
+
             # Manifest
             manifest: dict[str, Any] = {
                 "version": "1.0",
@@ -237,5 +250,16 @@ class ArchiveImporter:
                     temp_audio.write_bytes(zf.read(audio_name))
 
                     self._store.add_style(style, temp_audio)
+
+                    # Restore unified.safetensors if present in archive
+                    unified_name = f"{prefix}/unified.safetensors"
+                    if unified_name in zf.namelist():
+                        style_dir = (
+                            self._store._style_dir(  # noqa: SLF001
+                                identity.id, style_id,
+                            )
+                        )
+                        unified_dest = style_dir / "unified.safetensors"
+                        unified_dest.write_bytes(zf.read(unified_name))
 
         return identity

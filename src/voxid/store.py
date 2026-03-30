@@ -133,6 +133,10 @@ class VoicePromptStore:
 
         prompts_dir = sdir / "prompts"
         prompts_dir.mkdir(exist_ok=True)
+
+        # Run unified tokenizer if available (tokenizer extra installed)
+        self._try_unified_tokenize(persisted_style, dest_audio)
+
         return sdir
 
     def get_style(self, identity_id: str, style_id: str) -> Style:
@@ -163,6 +167,37 @@ class VoicePromptStore:
                 f"Style {style_id!r} not found for identity {identity_id!r}"
             )
         shutil.rmtree(sdir)
+
+    # ── Unified tokenizer integration ──────────────────────────────────────────
+
+    def _try_unified_tokenize(self, style: Style, audio_path: Path) -> None:
+        """Run the unified tokenizer on a style's reference audio.
+
+        Stores the result as ``unified.safetensors`` in the style directory.
+        No-op if the tokenizer dependencies (wavtokenizer, transformers,
+        scikit-learn) are not installed.
+        """
+        try:
+            from voxid.tokenizer import TokenizerConfig, UnifiedTokenizer
+
+            sdir = self._style_dir(style.identity_id, style.id)
+            config = TokenizerConfig()
+            tokenizer = UnifiedTokenizer(config)
+            speaker = tokenizer.tokenize(
+                audio_path,
+                identity_id=style.identity_id,
+                style_id=style.id,
+            )
+            tokenizer.save_tokenized(speaker, sdir / "unified.safetensors")
+        except ImportError:
+            return
+
+    def get_unified_path(
+        self, identity_id: str, style_id: str,
+    ) -> Path | None:
+        """Return path to unified.safetensors if it exists."""
+        path = self._style_dir(identity_id, style_id) / "unified.safetensors"
+        return path if path.exists() else None
 
     # ── Prompt cache ──────────────────────────────────────────────────────────
 
