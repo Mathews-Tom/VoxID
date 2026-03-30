@@ -1,7 +1,7 @@
 # VoxID — Voice Identity Management Platform
 
-**Version:** 1.0.0-draft
-**Status:** Design Phase
+**Version:** 0.2.0
+**Status:** Beta
 
 ---
 
@@ -82,11 +82,17 @@ The adapter layer is the dispatch layer. It normalizes the interface across TTS 
 ## Key Capabilities
 
 - **Multi-style voice identities** — named entities with multiple registers, persisted as TOML + SafeTensors
-- **Agentic style routing** — two-tier FastFit + learned fallback classifier selects register from text content
+- **Three-tier style routing** — rule-based (~0ms) → semantic MLP classifier (~10ms) → centroid fallback (~15ms) with SQLite LRU cache
 - **Engine-agnostic generation** — single API across Qwen3-TTS, Fish Speech, CosyVoice2, IndexTTS-2, Chatterbox
 - **Prosodic boundary segmentation** — segment-level routing for long-form text using boundary detection, not paragraph splits
+- **Context-aware generation** — rolling-window context tracking with SSML conditioning for prosodic continuity across long documents
+- **Unified speaker tokenization** — engine-agnostic representation combining WavTokenizer acoustic (40 Hz) and HuBERT semantic (50 Hz) tokens with linear projection to engine-specific embeddings
+- **Synthesis detection** — anti-spoofing ensemble (AASIST + RawNet2 + LCNN) with diffusion artifact analysis for deepfake detection
+- **Cross-lingual identity** — voice generation across 10+ languages while maintaining speaker identity consistency
+- **Multi-GPU serving** — async GPU dispatcher with round-robin/least-loaded strategies and vLLM plugin integration
 - **Style vector interpolation** — StyleTTS 2 convex combination for smooth register transitions between adjacent segments
-- **Scripted voice enrollment** — guided recording with phonetically balanced prompts (greedy phoneme-coverage selection), real-time quality validation (6-gate: SNR, duration, speech ratio, RMS, peak, sample rate), adaptive prompt selection, and multi-sample fusion
+- **Scripted voice enrollment** — guided recording with phonetically balanced prompts, real-time quality validation (6-gate), adaptive prompt selection, and multi-sample fusion
+- **Web enrollment UI** — browser-based enrollment with real-time waveform visualization and quality meters
 - **Enrollment health monitoring** — age-based (3-year threshold) and drift-based re-enrollment triggers
 - **Multi-sample fusion** — H/ASP segment-averaging with attention back-end for richer embeddings from multiple reference recordings
 - **Audio stitching** — ProsodyFM-informed adaptive pause durations between stitched segments
@@ -216,17 +222,16 @@ graph LR
 
 ### Competitive Landscape
 
-| Tool             | Identity Mgmt | Multi-Style          | Agentic Routing | Local-First | Open Source | Stars |
-| ---------------- | ------------- | -------------------- | --------------- | ----------- | ----------- | ----- |
-| ElevenLabs       | ✓ (cloud)     | ✗                    | ✗               | ✗           | ✗           | N/A   |
-| VoiceBox         | Partial       | Samples only         | ✗               | ✓           | ✓           | ~14k  |
-| Qwen3-TTS (raw)  | ✗             | ✗                    | ✗               | ✓           | ✓           | —     |
-| RealtimeTTS      | ✗             | ✗                    | ✗               | ✓           | ✓           | ~3.8k |
-| Open Unified TTS | ✗             | ✗                    | ✗               | ✓           | ✓           | 47    |
-| Fish Speech      | ✗             | Multi-speaker tokens | ✗               | ✓           | ✓           | 28.6k |
-| CosyVoice2       | ✗             | ✗                    | ✗               | ✓           | ✓           | 20.2k |
-| IndexTTS-2       | ✗             | Disentangled emotion | ✗               | ✓           | ✓           | 19.5k |
-| **VoxID**        | **✓**         | **✓**                | **✓**           | **✓**       | **✓**       | —     |
+| Tool            | Identity Mgmt | Multi-Style          | Agentic Routing | Anti-Spoofing | Multi-GPU | Local-First | Open Source |
+| --------------- | ------------- | -------------------- | --------------- | ------------- | --------- | ----------- | ----------- |
+| ElevenLabs      | ✓ (cloud)     | ✗                    | ✗               | ✗             | ✗         | ✗           | ✗           |
+| VoiceBox        | Partial       | Samples only         | ✗               | ✗             | ✗         | ✓           | ✓           |
+| Qwen3-TTS (raw) | ✗             | ✗                    | ✗               | ✗             | ✗         | ✓           | ✓           |
+| RealtimeTTS     | ✗             | ✗                    | ✗               | ✗             | ✗         | ✓           | ✓           |
+| Fish Speech     | ✗             | Multi-speaker tokens | ✗               | ✗             | ✗         | ✓           | ✓           |
+| CosyVoice2      | ✗             | ✗                    | ✗               | ✗             | ✗         | ✓           | ✓           |
+| IndexTTS-2      | ✗             | Disentangled emotion | ✗               | ✗             | ✗         | ✓           | ✓           |
+| **VoxID**       | **✓**         | **✓**                | **✓**           | **✓**         | **✓**     | **✓**       | **✓**       |
 
 ### Key Differentiator
 

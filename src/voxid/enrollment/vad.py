@@ -18,7 +18,10 @@ class VADBackend(StrEnum):
 
 
 def _silero_available() -> bool:
-    return importlib.util.find_spec("torch") is not None
+    return (
+        importlib.util.find_spec("torch") is not None
+        and importlib.util.find_spec("torchaudio") is not None
+    )
 
 
 def _webrtc_available() -> bool:
@@ -198,14 +201,14 @@ def detect_speech(
     if backend == VADBackend.SILERO:
         try:
             return detect_speech_silero(audio, sr, **kwargs)  # type: ignore[arg-type]
-        except RuntimeError:
+        except (RuntimeError, ModuleNotFoundError):
             logger.warning("Silero VAD failed, falling back to energy")
             return detect_speech_energy(audio, sr)
 
     if backend == VADBackend.WEBRTC:
         try:
             return detect_speech_webrtc(audio, sr, **kwargs)  # type: ignore[arg-type]
-        except RuntimeError:
+        except (RuntimeError, ModuleNotFoundError):
             logger.warning("WebRTC VAD failed, falling back to energy")
             return detect_speech_energy(audio, sr)
 

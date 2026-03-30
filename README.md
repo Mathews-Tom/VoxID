@@ -9,12 +9,18 @@ VoxID sits between your application and TTS engines. It introduces **voice ident
 ## Features
 
 - **Multi-style voice identities** — named entities with multiple registers (conversational, technical, narration, emphatic), persisted as TOML + SafeTensors
-- **Content-aware style routing** — two-tier classifier analyzes input text and selects the appropriate voice register automatically
+- **Three-tier style routing** — rule-based (~0ms) → semantic MLP classifier (~10ms) → centroid fallback (~15ms) with SQLite LRU cache
 - **Engine-agnostic generation** — single API across Qwen3-TTS, Fish Speech, CosyVoice2, IndexTTS-2, and Chatterbox
 - **Segment-level routing** — long-form text is split at prosodic boundaries, each segment routed independently with smoothing to prevent style thrashing
+- **Context-aware generation** — rolling-window context tracking for prosodic continuity across long documents with SSML conditioning and adaptive pause durations
+- **Unified tokenizer** — engine-agnostic speaker representation combining acoustic (WavTokenizer) and semantic (HuBERT) tokens with linear projection to engine-specific embeddings
+- **Synthesis detection** — anti-spoofing ensemble (AASIST + RawNet2 + LCNN) with diffusion artifact analysis for deepfake detection
+- **Cross-lingual identity** — voice generation across 10+ languages while maintaining speaker identity consistency
+- **Multi-GPU serving** — async GPU dispatcher with round-robin and least-loaded strategies, per-worker queue management, and vLLM plugin integration
 - **Portable `.voxid` archives** — HMAC-signed archives with consent records for identity transfer and backup
 - **AudioSeal watermarking** — provenance tracking embedded in generated audio (optional, requires `audioseal`)
 - **Scripted voice enrollment** — guided recording with phonetically balanced prompts, real-time quality feedback, adaptive phoneme coverage tracking, and multi-sample fusion
+- **Web enrollment UI** — browser-based enrollment with real-time waveform visualization, quality meters, and session persistence
 - **Voice drift detection** — cosine similarity monitoring against enrollment baseline with re-enrollment recommendations
 - **Re-enrollment health checks** — age-based and drift-based triggers for enrollment refresh
 - **Video pipeline integration** — SceneManifest contract for Manim and Remotion with word-level timing
@@ -128,6 +134,12 @@ voxid import alice_backup.voxid --key my-signing-key
 
 # Start the REST API server
 voxid serve --port 8765
+
+# Start with multi-GPU dispatch
+voxid serve --port 8765 --config serving.toml
+
+# Enroll with cross-lingual support
+voxid enroll alice --styles conversational --language zh
 ```
 
 ### REST API
@@ -137,28 +149,31 @@ voxid serve --port 8765
 voxid serve
 
 # Create identity
-curl -X POST http://localhost:8765/identities \
+curl -X POST http://localhost:8765/api/identities \
   -H "Content-Type: application/json" \
   -d '{"id": "alice", "name": "Alice"}'
 
 # Generate audio
-curl -X POST http://localhost:8765/generate \
+curl -X POST http://localhost:8765/api/generate \
   -H "Content-Type: application/json" \
   -d '{"text": "Hello world.", "identity_id": "alice"}'
 
 # Route without generating
-curl -X POST http://localhost:8765/route \
+curl -X POST http://localhost:8765/api/route \
   -H "Content-Type: application/json" \
   -d '{"text": "The gradient exploded during training.", "identity_id": "alice"}'
 
 # Create enrollment session
-curl -X POST http://localhost:8765/enroll/sessions \
+curl -X POST http://localhost:8765/api/enroll/sessions \
   -H "Content-Type: application/json" \
   -d '{"identity_id": "alice", "styles": ["conversational"], "prompts_per_style": 5}'
 
 # Upload audio sample
-curl -X POST http://localhost:8765/enroll/sessions/{id}/samples \
+curl -X POST http://localhost:8765/api/enroll/sessions/{id}/samples \
   -F "file=@recording.wav"
+
+# Multi-GPU serving health
+curl http://localhost:8765/api/v1/serving/health
 ```
 
 Set `VOXID_API_KEY` to enable API key authentication. Set `VOXID_RATE_LIMIT` and `VOXID_RATE_WINDOW` to configure rate limiting on generation endpoints.
@@ -173,28 +188,35 @@ docker run -p 8765:8765 -v ~/.voxid:/data/voxid voxid
 ## Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│                    Consumer Layer                       │
-│   Python Library  │  REST API  │  CLI  │  VoiceBox      │
-└────────┬──────────┴─────┬──────┴───┬───┴───────┬────────┘
-         │                │          │           │
-┌────────▼────────────────▼──────────▼───────────▼────────┐
-│                     VoxID Core                          │
-│  ┌──────────────┐ ┌─────────────┐ ┌──────────────────┐  │
-│  │  Identity    │ │   Style     │ │   Generation     │  │
-│  │  Registry    │ │   Router    │ │   Dispatcher     │  │
-│  └──────┬───────┘ └──────┬──────┘ └────────┬─────────┘  │
-│         │                │                 │            │
-│  ┌──────▼──────────┐ ┌───▼─────────────────▼─────────┐  │
-│  │   Enrollment    │ │  Voice Prompt Store           │  │
-│  │   Pipeline      │ │  (TOML + SafeTensors)         │  │
-│  └─────────────────┘ └───────────────────────────────┘  │
-└──────────────────────────┬──────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                        Consumer Layer                            │
+│   Python Library  │  REST API  │  CLI  │  Web UI  │  VoiceBox   │
+└────────┬──────────┴─────┬──────┴───┬───┴─────┬────┴──────┬──────┘
+         │                │          │         │           │
+┌────────▼────────────────▼──────────▼─────────▼───────────▼──────┐
+│                         VoxID Core                              │
+│  ┌──────────────┐ ┌─────────────┐ ┌──────────────────────────┐  │
+│  │  Identity    │ │   Style     │ │   Generation Dispatcher  │  │
+│  │  Registry    │ │   Router    │ │   + Context Conditioner  │  │
+│  └──────┬───────┘ └──────┬──────┘ └────────┬─────────────────┘  │
+│         │           3-tier│                 │                    │
+│  ┌──────▼──────────┐  ┌──▼──────────┐  ┌───▼─────────────────┐  │
+│  │   Enrollment    │  │  Unified    │  │  Voice Prompt Store │  │
+│  │   Pipeline      │  │  Tokenizer  │  │  (TOML+SafeTensors) │  │
+│  └──────┬──────────┘  └─────────────┘  └───────────┬─────────┘  │
+│         │                                          │            │
+│  ┌──────▼──────────────────────────────────────────▼─────────┐  │
+│  │   Security: Spoofing Detection │ Consent │ Drift │ Seal   │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└──────────────────────────┬──────────────────────────────────────┘
                            │
-┌──────────────────────────▼──────────────────────────────┐
-│                   Engine Adapters                       │
-│  Qwen3-TTS │ Fish Speech │ CosyVoice2 │ IndexTTS-2  │ … │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────▼──────────────────────────────────────┐
+│                  GPU Dispatcher / Engine Adapters                │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  Multi-GPU Serving (vLLM): round-robin / least-loaded   │   │
+│  └────┬────────────┬────────────┬────────────┬──────────────┘   │
+│  Qwen3-TTS │ Fish Speech │ CosyVoice2 │ IndexTTS-2 │ Chatterbox│
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 **Storage layout:**
@@ -202,6 +224,7 @@ docker run -p 8765:8765 -v ~/.voxid:/data/voxid voxid
 ```text
 ~/.voxid/
 ├── config.toml
+├── serving.toml                           # multi-GPU dispatch config (optional)
 ├── identities/
 │   └── alice/
 │       ├── identity.toml
@@ -212,11 +235,14 @@ docker run -p 8765:8765 -v ~/.voxid:/data/voxid voxid
 │               ├── style.toml
 │               ├── ref_audio.wav          # source of truth
 │               ├── ref_text.txt           # source of truth
+│               ├── tokenized.safetensors  # unified speaker tokens (optional)
 │               └── prompts/               # derived cache
 │                   ├── qwen3-tts.safetensors
 │                   └── fish-speech.safetensors
 ├── enrollment_sessions/                   # resumable enrollment state
 │   └── {session_id}.json
+├── projections/                           # engine projector weights
+│   └── {engine}.safetensors
 ├── cache/
 │   └── router/
 │       └── router_cache.db
