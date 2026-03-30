@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import logging
 from dataclasses import dataclass, field
 from typing import Any
@@ -7,6 +8,8 @@ from typing import Any
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+_SPOOFING_AVAILABLE = importlib.util.find_spec("voxid.security.spoofing") is not None
 
 # Research-backed thresholds (scripted-enrollment-pipeline.md §9.1)
 _EPSILON = 1e-9
@@ -270,6 +273,14 @@ class QualityGate:
 
         net_speech = duration * speech_ratio
 
+        # 7. Synthesis detection (LAST gate — most expensive)
+        if _SPOOFING_AVAILABLE and len(reasons) == 0:
+            synthesis_result = self._check_synthesis(audio_f, sr)
+            if synthesis_result == "fail":
+                reasons.append("Synthetic speech detected")
+            elif synthesis_result == "warn":
+                warnings.append("Audio flagged as potentially synthetic")
+
         return QualityReport(
             passed=len(reasons) == 0,
             snr_db=snr,
@@ -282,3 +293,42 @@ class QualityGate:
             warnings=warnings,
             rejection_reasons=reasons,
         )
+
+    def _check_synthesis(
+        self, audio: np.ndarray, sr: int
+    ) -> str:
+        """Run anti-spoofing detection. Returns 'pass', 'fail', or 'warn'.
+
+        Only called when the ``spoofing`` extra is installed. Catches
+        SpoofingUnavailableError (no model weights) and logs a warning
+        rather than blocking enrollment.
+        """
+        from voxid.security.spoofing import (
+            SpoofingUnavailableError,
+            SpoofLabel,
+            SynthesisDetector,
+        )
+
+        try:
+            detector = SynthesisDetector()
+            decision = detector.detect(audio, sr)
+        except SpoofingUnavailableError:
+            logger.warning(
+                "Spoofing extra installed but no model weights found; "
+                "skipping synthesis check"
+            )
+            return "pass"
+
+        if decision.label == SpoofLabel.SYNTHETIC:
+            logger.warning(
+                "Synthetic speech detected (score=%.3f, type=%s)",
+                decision.score,
+                decision.artifact_type.value,
+            )
+            return "fail"
+        if decision.label == SpoofLabel.UNCERTAIN:
+            logger.info(
+                "Uncertain spoofing result (score=%.3f)", decision.score
+            )
+            return "warn"
+        return "pass"
