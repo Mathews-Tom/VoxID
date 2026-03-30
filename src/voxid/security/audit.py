@@ -40,8 +40,8 @@ _FORBIDDEN_PATTERNS: list[tuple[str, str, str]] = [
         "pickle.dump/dumps — insecure serialization",
     ),
     (r"\bdill\b", "critical", "dill usage detected — same risk as pickle"),
-    (r"\beval\s*\(", "critical", "eval() — arbitrary code execution"),
-    (r"\bexec\s*\(", "critical", "exec() — arbitrary code execution"),
+    (r"(?<!\.)\beval\s*\(", "critical", "eval() — arbitrary code execution"),
+    (r"(?<!\.)\bexec\s*\(", "critical", "exec() — arbitrary code execution"),
     (
         r"\b__import__\s*\(",
         "high",
