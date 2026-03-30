@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import soundfile as sf  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    from voxid.context.types import StitchParams
 
 
 @dataclass(frozen=True)
@@ -29,6 +33,7 @@ class AudioStitcher:
         audio_segments: list[tuple[np.ndarray, int]],
         boundary_types: list[str],
         output_path: Path,
+        stitch_params: list[StitchParams] | None = None,
     ) -> tuple[Path, int, int]:
         """Stitch audio segments into a single file.
 
@@ -37,6 +42,10 @@ class AudioStitcher:
             boundary_types: boundary type for each segment
                 (same length as audio_segments)
             output_path: path to write the stitched WAV
+            stitch_params: optional per-boundary StitchParams from
+                ContextConditioner. When provided, overrides the fixed
+                pause-per-boundary-type formula. Length must equal
+                len(audio_segments).
 
         Returns:
             (output_path, total_samples, sample_rate)
@@ -50,6 +59,12 @@ class AudioStitcher:
                 f"boundary_types length {len(boundary_types)}"
             )
 
+        if stitch_params is not None and len(stitch_params) != len(audio_segments):
+            raise ValueError(
+                f"stitch_params length {len(stitch_params)} != "
+                f"audio_segments length {len(audio_segments)}"
+            )
+
         # Validate uniform sample rate
         sample_rates = [sr for _, sr in audio_segments]
         if len(set(sample_rates)) > 1:
@@ -59,16 +74,21 @@ class AudioStitcher:
             )
         sample_rate = sample_rates[0]
 
-        crossfade_samples = int(
-            sample_rate * self._config.crossfade_ms / 1000
-        )
+        default_xf = int(sample_rate * self._config.crossfade_ms / 1000)
 
         # Start with the first segment
         accumulated = audio_segments[0][0].astype(np.float32)
 
         for i in range(1, len(audio_segments)):
-            # Pause duration is determined by the boundary of the NEXT segment
-            pause_ms = self._pause_for_boundary(boundary_types[i])
+            if stitch_params is not None:
+                pause_ms = stitch_params[i].pause_ms
+                crossfade_samples = int(
+                    sample_rate * stitch_params[i].crossfade_ms / 1000
+                )
+            else:
+                pause_ms = self._pause_for_boundary(boundary_types[i])
+                crossfade_samples = default_xf
+
             silence = self._make_silence(pause_ms, sample_rate)
 
             # Crossfade between end of accumulated and silence

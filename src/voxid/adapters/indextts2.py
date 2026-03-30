@@ -108,6 +108,7 @@ class IndexTTS2Adapter:
         text: str,
         prompt_path: Path,
         language: str = "en",
+        context_params: dict[str, float] | None = None,
     ) -> tuple[np.ndarray, int]:
         model = self._ensure_model()
         tensors, metadata = load_prompt(prompt_path)

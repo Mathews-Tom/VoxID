@@ -41,8 +41,14 @@ class TTSEngineAdapter(Protocol):
         text: str,
         prompt_path: Path,
         language: str = "en",
+        context_params: dict[str, float] | None = None,
     ) -> tuple[np.ndarray, int]:
-        """Generate audio. Returns (waveform, sample_rate)."""
+        """Generate audio. Returns (waveform, sample_rate).
+
+        context_params: optional continuity parameters from ContextConditioner.
+            Keys may include "speed", "pitch_hz", "energy". Adapters that do
+            not support context conditioning ignore this parameter.
+        """
         ...
 
     def generate_streaming(
