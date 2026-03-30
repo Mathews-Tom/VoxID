@@ -66,13 +66,24 @@ def build_segment_plan(
     if not segments:
         return [], []
 
-    # Route each segment
+    # Route each segment (with context for semantic classifier)
+    segment_texts = [s.text for s in segments]
     decisions: list[RouteDecision] = []
-    for s in segments:
+    for i, s in enumerate(segments):
+        context_window = 2
+        context_texts = [
+            segment_texts[j]
+            for j in range(
+                max(0, i - context_window),
+                min(len(segment_texts), i + context_window + 1),
+            )
+            if j != i
+        ]
         decision = router.route(
             s.text,
             available_styles,
             default_style,
+            context_texts=context_texts,
         )
         decisions.append(decision)
 
