@@ -21,6 +21,17 @@ class DriftReport:
     version_count: int
 
 
+def _pick_embedding(tensors: dict[str, np.ndarray]) -> np.ndarray:
+    """Select the best available speaker embedding from a tensor dict.
+
+    Priority: unified_embedding > ref_spk_embedding > first tensor.
+    """
+    for key in ("unified_embedding", "ref_spk_embedding"):
+        if key in tensors:
+            return tensors[key]
+    return next(iter(tensors.values()))
+
+
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     """Compute cosine similarity between two vectors."""
     norm_a = float(np.linalg.norm(a))
@@ -81,15 +92,9 @@ def check_drift(
             version_count=len(versions),
         )
 
-    # Use ref_spk_embedding if available, else first tensor
-    baseline_emb = baseline_tensors.get(
-        "ref_spk_embedding",
-        next(iter(baseline_tensors.values())),
-    )
-    latest_emb = latest_tensors.get(
-        "ref_spk_embedding",
-        next(iter(latest_tensors.values())),
-    )
+    # Prefer unified_embedding (Phase 11), then ref_spk_embedding, then first tensor
+    baseline_emb = _pick_embedding(baseline_tensors)
+    latest_emb = _pick_embedding(latest_tensors)
 
     similarity = cosine_similarity(
         baseline_emb.flatten(),
