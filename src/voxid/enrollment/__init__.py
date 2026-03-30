@@ -8,6 +8,13 @@ import numpy as np
 
 from .consent import ConsentManager
 from .health import EnrollmentHealthReport, check_enrollment_health
+from .multilingual import (
+    LanguageConfig,
+    MultilingualScriptGenerator,
+    UniversalPhonemeTracker,
+    get_language_config,
+    list_languages,
+)
 from .phoneme_tracker import (
     ALL_PHONEMES,
     PHONEME_WEIGHTS,
@@ -48,6 +55,7 @@ class EnrollmentPipeline:
     def __init__(self, voxid: VoxID) -> None:
         self._voxid = voxid
         self._generator = ScriptGenerator()
+        self._ml_generator = MultilingualScriptGenerator()
         self._gate = QualityGate()
         self._preprocessor = AudioPreprocessor()
         self._session_store = SessionStore(voxid._store._root)
@@ -57,17 +65,47 @@ class EnrollmentPipeline:
         identity_id: str,
         styles: list[str],
         prompts_per_style: int = 5,
+        language: str | None = None,
     ) -> EnrollmentSession:
-        """Create a new enrollment session with generated prompts."""
+        """Create a new enrollment session with generated prompts.
+
+        When language is None or "en", uses the English ARPAbet pipeline.
+        For other languages, uses the multilingual IPA pipeline.
+        """
         if identity_id not in self._voxid.list_identities():
             raise ValueError(
                 f"Identity '{identity_id}' not found"
             )
 
-        prompts: dict[str, list[EnrollmentPrompt]] = {
-            s: self._generator.select_prompts(s, count=prompts_per_style)
-            for s in styles
-        }
+        is_multilingual = language is not None and language != "en"
+
+        if is_multilingual:
+            ml_prompts = {
+                s: self._ml_generator.select_prompts(
+                    language, count=prompts_per_style,
+                )
+                for s in styles
+            }
+            # Convert MultilingualPrompt → EnrollmentPrompt for session compat
+            prompts: dict[str, list[EnrollmentPrompt]] = {}
+            for s, ml_list in ml_prompts.items():
+                prompts[s] = [
+                    EnrollmentPrompt(
+                        text=mp.text,
+                        style=s,
+                        phonemes=mp.phonemes,
+                        unique_phoneme_count=mp.unique_phoneme_count,
+                        nasal_count=0,
+                        affricate_count=0,
+                    )
+                    for mp in ml_list
+                ]
+        else:
+            prompts = {
+                s: self._generator.select_prompts(s, count=prompts_per_style)
+                for s in styles
+            }
+
         session = EnrollmentSession(
             session_id=str(uuid.uuid4())[:8],
             identity_id=identity_id,
@@ -78,6 +116,7 @@ class EnrollmentPipeline:
             status=SessionStatus.IN_PROGRESS,
             prompts_per_style=prompts_per_style,
             prompts=prompts,
+            language=language,
         )
         self._session_store.save(session)
         return session
@@ -250,6 +289,8 @@ __all__ = [
     "EnrollmentPrompt",
     "EnrollmentSample",
     "EnrollmentSession",
+    "LanguageConfig",
+    "MultilingualScriptGenerator",
     "PHONEME_WEIGHTS",
     "PhonemeTracker",
     "QualityConfig",
@@ -259,6 +300,7 @@ __all__ = [
     "ScriptGenerator",
     "SessionStatus",
     "SessionStore",
+    "UniversalPhonemeTracker",
     "VADBackend",
     "check_enrollment_health",
     "detect_speech",
@@ -266,6 +308,8 @@ __all__ = [
     "detect_speech_silero",
     "detect_speech_webrtc",
     "estimate_snr",
+    "get_language_config",
+    "list_languages",
     "load_cmudict",
     "save_recording",
     "text_to_phonemes",

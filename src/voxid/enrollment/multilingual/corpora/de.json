@@ -1,0 +1,34 @@
+[
+  {
+    "text": "Der junge Schüler übte fleißig Klavier und sang dazu fröhliche Lieder.",
+    "phonemes": ["d", "eː", "ʁ", "j", "ʊ", "ŋ", "ə", "ʃ", "yː", "l", "ɜ", "yː", "b", "t", "ə", "f", "l", "aɪ", "s", "ɪ", "ç", "k", "l", "a", "v", "iː", "ʁ", "ʊ", "n", "t", "z", "a", "ŋ", "d", "a", "ts", "uː", "f", "ʁ", "øː", "l", "ɪ", "ç", "ə", "l", "iː", "d", "ɜ"]
+  },
+  {
+    "text": "Zwischen den Büschen versteckte sich ein Pfau mit buntem Gefieder.",
+    "phonemes": ["ts", "v", "ɪ", "ʃ", "ən", "d", "eː", "n", "b", "ʏ", "ʃ", "ən", "f", "ɛ", "ʁ", "ʃ", "t", "ɛ", "k", "t", "ə", "z", "ɪ", "ç", "aɪ", "n", "pf", "aʊ", "m", "ɪ", "t", "b", "ʊ", "n", "t", "əm", "ɡ", "ə", "f", "iː", "d", "ɜ"]
+  },
+  {
+    "text": "Die Ärztin verschrieb dem Patienten zwölf verschiedene Medikamente.",
+    "phonemes": ["d", "iː", "ɛ", "ʁ", "ts", "t", "ɪ", "n", "f", "ɛ", "ʁ", "ʃ", "ʁ", "iː", "p", "d", "eː", "m", "p", "a", "ts", "iː", "ɛ", "n", "t", "ən", "ts", "v", "œ", "l", "f", "f", "ɛ", "ʁ", "ʃ", "iː", "d", "ən", "ə", "m", "eː", "d", "iː", "k", "a", "m", "ɛ", "n", "t", "ə"]
+  },
+  {
+    "text": "Mein Großvater erzählte gern Geschichten über seine Jugend im Schwarzwald.",
+    "phonemes": ["m", "aɪ", "n", "ɡ", "ʁ", "oː", "s", "f", "aː", "t", "ɜ", "ɛ", "ʁ", "ts", "ɛː", "l", "t", "ə", "ɡ", "ɛ", "ʁ", "n", "ɡ", "ə", "ʃ", "ɪ", "ç", "t", "ən", "yː", "b", "ɜ", "z", "aɪ", "n", "ə", "j", "uː", "ɡ", "ən", "t", "ɪ", "m", "ʃ", "v", "a", "ʁ", "ts", "v", "a", "l", "t"]
+  },
+  {
+    "text": "Die Nachbarn feierten zusammen ein fröhliches Straßenfest mit Musik.",
+    "phonemes": ["d", "iː", "n", "a", "x", "b", "aː", "ʁ", "n", "f", "aɪ", "ɜ", "t", "ən", "ts", "uː", "z", "a", "m", "ən", "aɪ", "n", "f", "ʁ", "øː", "l", "ɪ", "ç", "əs", "ʃ", "t", "ʁ", "aː", "s", "ən", "f", "ɛ", "s", "t", "m", "ɪ", "t", "m", "uː", "z", "iː", "k"]
+  },
+  {
+    "text": "Während des Gewitters zogen schwere Wolken über die grünen Hügel.",
+    "phonemes": ["v", "ɛː", "ʁ", "ən", "t", "d", "ɛ", "s", "ɡ", "ə", "v", "ɪ", "t", "ɜ", "s", "ts", "oː", "ɡ", "ən", "ʃ", "v", "eː", "ʁ", "ə", "v", "ɔ", "l", "k", "ən", "yː", "b", "ɜ", "d", "iː", "ɡ", "ʁ", "yː", "n", "ən", "h", "yː", "ɡ", "əl"]
+  },
+  {
+    "text": "Der Küchenchef bereitete ein vorzügliches Gericht mit frischen Zutaten.",
+    "phonemes": ["d", "eː", "ʁ", "k", "ʏ", "ç", "ən", "ʃ", "ɛ", "f", "b", "ə", "ʁ", "aɪ", "t", "ə", "t", "ə", "aɪ", "n", "f", "ɔ", "ʁ", "ts", "yː", "k", "l", "ɪ", "ç", "əs", "ɡ", "ə", "ʁ", "ɪ", "ç", "t", "m", "ɪ", "t", "f", "ʁ", "ɪ", "ʃ", "ən", "ts", "uː", "t", "aː", "t", "ən"]
+  },
+  {
+    "text": "Die Studenten diskutierten über die philosophischen Grundlagen der Physik.",
+    "phonemes": ["d", "iː", "ʃ", "t", "uː", "d", "ɛ", "n", "t", "ən", "d", "ɪ", "s", "k", "uː", "t", "iː", "ʁ", "t", "ən", "yː", "b", "ɜ", "d", "iː", "f", "iː", "l", "oː", "z", "oː", "f", "ɪ", "ʃ", "ən", "ɡ", "ʁ", "ʊ", "n", "t", "l", "aː", "ɡ", "ən", "d", "eː", "ʁ", "f", "yː", "z", "ɪ", "k"]
+  }
+]

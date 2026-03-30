@@ -125,6 +125,7 @@ class CreateEnrollSessionRequest(BaseModel):
     identity_id: str
     styles: list[str]
     prompts_per_style: int = 5
+    language: str | None = None
 
 
 class EnrollPromptResponse(BaseModel):

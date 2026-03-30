@@ -25,10 +25,14 @@ from voxid.api.models import (
 )
 from voxid.core import VoxID
 from voxid.enrollment.consent import ConsentManager
+from voxid.enrollment.multilingual import (
+    MultilingualScriptGenerator,
+    get_language_config,
+)
 from voxid.enrollment.preprocessor import AudioPreprocessor
 from voxid.enrollment.quality_gate import QualityGate
 from voxid.enrollment.recorder import save_recording
-from voxid.enrollment.script_generator import ScriptGenerator
+from voxid.enrollment.script_generator import EnrollmentPrompt, ScriptGenerator
 from voxid.enrollment.session import (
     EnrollmentSample,
     EnrollmentSession,
@@ -41,6 +45,7 @@ router = APIRouter(prefix="/enroll", tags=["enrollment"])
 _gate = QualityGate()
 _preprocessor = AudioPreprocessor()
 _generator = ScriptGenerator()
+_ml_generator = MultilingualScriptGenerator()
 
 
 def _get_session_store(vox: VoxID = Depends(get_voxid)) -> SessionStore:
@@ -103,10 +108,40 @@ async def create_session(
             detail=f"Identity '{req.identity_id}' not found",
         )
 
-    prompts = {
-        s: _generator.select_prompts(s, count=req.prompts_per_style)
-        for s in req.styles
-    }
+    is_multilingual = req.language is not None and req.language != "en"
+
+    if is_multilingual and req.language is not None:
+        try:
+            get_language_config(req.language)
+        except KeyError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        ml_prompts = {
+            s: _ml_generator.select_prompts(
+                req.language, count=req.prompts_per_style,
+            )
+            for s in req.styles
+        }
+        prompts: dict[str, list[EnrollmentPrompt]] = {
+            s: [
+                EnrollmentPrompt(
+                    text=mp.text,
+                    style=s,
+                    phonemes=mp.phonemes,
+                    unique_phoneme_count=mp.unique_phoneme_count,
+                    nasal_count=0,
+                    affricate_count=0,
+                )
+                for mp in ml_list
+            ]
+            for s, ml_list in ml_prompts.items()
+        }
+    else:
+        prompts = {
+            s: _generator.select_prompts(s, count=req.prompts_per_style)
+            for s in req.styles
+        }
+
     session = EnrollmentSession(
         session_id=str(uuid.uuid4())[:8],
         identity_id=req.identity_id,
@@ -115,6 +150,7 @@ async def create_session(
         status=SessionStatus.IN_PROGRESS,
         prompts_per_style=req.prompts_per_style,
         prompts=prompts,
+        language=req.language,
     )
     store.save(session)
     return _session_to_response(session)

@@ -8,6 +8,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from .multilingual.phoneme_universal import UniversalPhonemeTracker
 from .phoneme_tracker import PhonemeTracker
 from .quality_gate import QualityReport
 from .script_generator import EnrollmentPrompt
@@ -77,8 +78,12 @@ class EnrollmentSession:
     status: SessionStatus
     prompts_per_style: int
     prompts: dict[str, list[EnrollmentPrompt]]
+    language: str | None = None
     samples: list[EnrollmentSample] = field(default_factory=list)
     phoneme_trackers: dict[str, PhonemeTracker] = field(
+        default_factory=dict,
+    )
+    multilingual_trackers: dict[str, UniversalPhonemeTracker] = field(
         default_factory=dict,
     )
     current_style_index: int = 0
@@ -104,13 +109,31 @@ class EnrollmentSession:
             return None
         return style_prompts[self.current_prompt_index]
 
-    def accept_sample(self, sample: EnrollmentSample) -> None:
+    @property
+    def is_multilingual(self) -> bool:
+        """True when the session targets a non-English language."""
+        return self.language is not None and self.language != "en"
+
+    def accept_sample(
+        self,
+        sample: EnrollmentSample,
+        phonemes: list[str] | None = None,
+    ) -> None:
         self._require_in_progress()
         self.samples.append(sample)
         style = sample.style_id
-        if style not in self.phoneme_trackers:
-            self.phoneme_trackers[style] = PhonemeTracker()
-        self.phoneme_trackers[style].ingest(sample.prompt_text)
+
+        if self.is_multilingual and self.language is not None:
+            if style not in self.multilingual_trackers:
+                self.multilingual_trackers[style] = UniversalPhonemeTracker(
+                    self.language,
+                )
+            if phonemes is not None:
+                self.multilingual_trackers[style].ingest_phonemes(phonemes)
+        else:
+            if style not in self.phoneme_trackers:
+                self.phoneme_trackers[style] = PhonemeTracker()
+            self.phoneme_trackers[style].ingest(sample.prompt_text)
 
     def reject_sample(
         self, prompt_index: int, reason: str,
@@ -185,7 +208,13 @@ class EnrollmentSession:
     def progress_summary(self) -> dict[str, Any]:
         summary: dict[str, Any] = {}
         for style in self.styles:
-            tracker = self.phoneme_trackers.get(style)
+            if self.is_multilingual:
+                ml_tracker = self.multilingual_trackers.get(style)
+                coverage = ml_tracker.coverage_percent() if ml_tracker else 0.0
+            else:
+                tracker = self.phoneme_trackers.get(style)
+                coverage = tracker.coverage_percent() if tracker else 0.0
+
             style_samples = [
                 s for s in self.samples if s.style_id == style
             ]
@@ -193,9 +222,7 @@ class EnrollmentSession:
             rejected = [s for s in style_samples if not s.accepted]
             total_prompts = len(self.prompts.get(style, []))
             summary[style] = {
-                "coverage_percent": (
-                    tracker.coverage_percent() if tracker else 0.0
-                ),
+                "coverage_percent": coverage,
                 "accepted": len(accepted),
                 "rejected": len(rejected),
                 "total_prompts": total_prompts,
@@ -218,7 +245,7 @@ class EnrollmentSession:
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        result: dict[str, Any] = {
             "session_id": self.session_id,
             "identity_id": self.identity_id,
             "styles": list(self.styles),
@@ -234,9 +261,16 @@ class EnrollmentSession:
                 style: t.to_dict()
                 for style, t in self.phoneme_trackers.items()
             },
+            "multilingual_trackers": {
+                style: t.to_dict()
+                for style, t in self.multilingual_trackers.items()
+            },
             "current_style_index": self.current_style_index,
             "current_prompt_index": self.current_prompt_index,
         }
+        if self.language is not None:
+            result["language"] = self.language
+        return result
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> EnrollmentSession:
@@ -251,6 +285,12 @@ class EnrollmentSession:
         ).items():
             trackers[style] = PhonemeTracker.from_dict(tracker_data)
 
+        ml_trackers: dict[str, UniversalPhonemeTracker] = {}
+        for style, ml_data in data.get(
+            "multilingual_trackers", {},
+        ).items():
+            ml_trackers[style] = UniversalPhonemeTracker.from_dict(ml_data)
+
         return cls(
             session_id=data["session_id"],
             identity_id=data["identity_id"],
@@ -259,11 +299,13 @@ class EnrollmentSession:
             status=SessionStatus(data["status"]),
             prompts_per_style=data["prompts_per_style"],
             prompts=prompts,
+            language=data.get("language"),
             samples=[
                 EnrollmentSample.from_dict(s)
                 for s in data.get("samples", [])
             ],
             phoneme_trackers=trackers,
+            multilingual_trackers=ml_trackers,
             current_style_index=data.get("current_style_index", 0),
             current_prompt_index=data.get("current_prompt_index", 0),
         )

@@ -1,0 +1,34 @@
+[
+  {
+    "text": "O menino brincava alegremente no jardim enquanto sua mãe cozinhava.",
+    "phonemes": ["u", "m", "e", "n", "i", "n", "u", "b", "ɾ", "ĩ", "k", "a", "v", "a", "a", "l", "e", "ɡ", "ɾ", "e", "m", "ẽ", "tʃ", "i", "n", "u", "ʒ", "a", "ʁ", "d", "ĩ", "ẽ", "k", "u", "ã", "t", "u", "s", "u", "a", "m", "ã", "i", "k", "o", "z", "i", "ɲ", "a", "v", "a"]
+  },
+  {
+    "text": "Os estudantes discutiram sobre filosofia durante toda a manhã de ontem.",
+    "phonemes": ["u", "z", "i", "s", "t", "u", "d", "ã", "tʃ", "i", "s", "d", "ʒ", "i", "s", "k", "u", "tʃ", "i", "ɾ", "ã", "u", "s", "o", "b", "ɾ", "i", "f", "i", "l", "o", "z", "o", "f", "i", "a", "d", "u", "ɾ", "ã", "tʃ", "i", "t", "o", "d", "a", "a", "m", "a", "ɲ", "ã"]
+  },
+  {
+    "text": "Minha avó sempre preparava um bolo de chocolate maravilhoso aos domingos.",
+    "phonemes": ["m", "i", "ɲ", "a", "a", "v", "ɔ", "s", "ẽ", "p", "ɾ", "i", "p", "ɾ", "e", "p", "a", "ɾ", "a", "v", "a", "ũ", "b", "o", "l", "u", "dʒ", "i", "ʃ", "o", "k", "o", "l", "a", "tʃ", "i", "m", "a", "ɾ", "a", "v", "i", "ʎ", "o", "z", "u"]
+  },
+  {
+    "text": "A professora explicou a lição com muita paciência para todos os alunos.",
+    "phonemes": ["a", "p", "ɾ", "o", "f", "e", "s", "o", "ɾ", "a", "i", "s", "p", "l", "i", "k", "o", "a", "l", "i", "s", "ã", "u", "k", "õ", "m", "u", "i", "t", "a", "p", "a", "s", "i", "ẽ", "s", "i", "a", "p", "a", "ɾ", "a", "t", "o", "d", "u", "z", "u", "z", "a", "l", "u", "n", "u", "s"]
+  },
+  {
+    "text": "No verão gostamos de ir à praia e nadar no mar com toda a família.",
+    "phonemes": ["n", "u", "v", "e", "ɾ", "ã", "u", "ɡ", "o", "s", "t", "a", "m", "u", "z", "dʒ", "i", "i", "ʁ", "a", "p", "ɾ", "a", "i", "a", "i", "n", "a", "d", "a", "ʁ", "n", "u", "m", "a", "ʁ", "k", "õ", "t", "o", "d", "a", "a", "f", "a", "m", "i", "l", "i", "a"]
+  },
+  {
+    "text": "O médico recomendou exercícios diários para melhorar a saúde do paciente.",
+    "phonemes": ["u", "m", "ɛ", "dʒ", "i", "k", "u", "ʁ", "e", "k", "o", "m", "ẽ", "d", "o", "i", "z", "e", "ʁ", "s", "i", "s", "i", "u", "z", "dʒ", "i", "a", "ɾ", "i", "u", "s", "p", "a", "ɾ", "a", "m", "e", "ʎ", "o", "ɾ", "a", "ʁ", "a", "s", "a", "u", "dʒ", "i", "d", "u", "p", "a", "s", "i", "ẽ", "tʃ", "i"]
+  },
+  {
+    "text": "Os músicos tocaram canções tradicionais brasileiras durante o festival.",
+    "phonemes": ["u", "z", "m", "u", "z", "i", "k", "u", "s", "t", "o", "k", "a", "ɾ", "ã", "u", "k", "ã", "s", "õ", "i", "s", "t", "ɾ", "a", "dʒ", "i", "s", "i", "o", "n", "a", "i", "s", "b", "ɾ", "a", "z", "i", "l", "e", "i", "ɾ", "a", "s", "d", "u", "ɾ", "ã", "tʃ", "i", "u", "f", "e", "s", "tʃ", "i", "v", "a", "l"]
+  },
+  {
+    "text": "A chuva forte começou de repente enquanto caminhávamos pela cidade velha.",
+    "phonemes": ["a", "ʃ", "u", "v", "a", "f", "ɔ", "ʁ", "tʃ", "i", "k", "o", "m", "e", "s", "o", "dʒ", "i", "ʁ", "e", "p", "ẽ", "tʃ", "i", "ẽ", "k", "u", "ã", "t", "u", "k", "a", "m", "i", "ɲ", "a", "v", "a", "m", "u", "s", "p", "e", "l", "a", "s", "i", "d", "a", "dʒ", "i", "v", "ɛ", "ʎ", "a"]
+  }
+]
