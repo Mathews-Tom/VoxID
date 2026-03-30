@@ -54,6 +54,10 @@ qwen3-tts = ["qwen-tts>=0.1"]
 qwen3-tts-mlx = [
     "mlx-audio>=0.4",
 ]
+serving = [
+    "vllm>=0.4",
+    "torch>=2.0",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
@@ -173,6 +177,14 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "decoder.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "vllm"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "vllm.*"
 ignore_missing_imports = true
 
 [tool.ruff]
