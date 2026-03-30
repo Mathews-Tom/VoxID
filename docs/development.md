@@ -39,19 +39,20 @@ VoxID/
 │   ├── archive.py               # .voxid archive export/import
 │   ├── cli.py                   # Click CLI
 │   │
-│   ├── enrollment/             # Scripted enrollment pipeline
-│   │   ├── __init__.py         # EnrollmentPipeline orchestrator + exports
-│   │   ├── phoneme_tracker.py  # CMUdict phoneme lookup + coverage tracking
-│   │   ├── script_generator.py # Greedy phoneme-coverage prompt selection
-│   │   ├── quality_gate.py     # 6-gate audio quality validation (SNR, RMS, peak, duration, speech ratio, sample rate)
-│   │   ├── preprocessor.py     # Audio preprocessing (mono, resample, trim, LUFS normalize)
-│   │   ├── session.py          # Enrollment session state machine + persistence
-│   │   ├── recorder.py         # Callback-based audio recorder + energy VAD + save_recording
-│   │   ├── cli_ui.py           # Terminal display helpers (VU meter, prompts, quality feedback)
-│   │   ├── consent.py          # Consent recording, SHA-256 hashing, legal compliance
-│   │   ├── vad.py              # Multi-backend VAD (Silero/WebRTC/energy fallback)
-│   │   ├── health.py           # Re-enrollment health check (age + drift)
-│   │   └── prompts/            # Bundled JSON corpora (5 styles, 310 sentences)
+│   ├── enrollment/              # Scripted enrollment pipeline
+│   │   ├── __init__.py          # EnrollmentPipeline orchestrator + exports
+│   │   ├── phoneme_tracker.py   # CMUdict phoneme lookup + coverage tracking
+│   │   ├── script_generator.py  # Greedy phoneme-coverage prompt selection
+│   │   ├── quality_gate.py      # 6-gate audio quality validation
+│   │   ├── preprocessor.py      # Audio preprocessing (mono, resample, trim, LUFS)
+│   │   ├── session.py           # Enrollment session state machine + persistence
+│   │   ├── recorder.py          # Callback-based audio recorder + energy VAD
+│   │   ├── cli_ui.py            # Terminal display helpers
+│   │   ├── consent.py           # Consent recording, SHA-256, legal compliance
+│   │   ├── vad.py               # Multi-backend VAD (Silero/WebRTC/energy)
+│   │   ├── health.py            # Re-enrollment health check (age + drift)
+│   │   ├── multilingual.py      # Cross-lingual enrollment prompt generation
+│   │   └── prompts/             # Bundled JSON corpora (5 styles, 310 sentences)
 │   │
 │   ├── adapters/                # TTS engine adapters
 │   │   ├── __init__.py          # Registry, discovery, @register_adapter
@@ -63,9 +64,10 @@ VoxID/
 │   │   ├── indextts2.py         # IndexTTS-2 (emotion control)
 │   │   └── chatterbox.py        # Chatterbox (paralinguistic tags)
 │   │
-│   ├── router/                  # Style routing
+│   ├── router/                  # Style routing (three-tier)
 │   │   ├── __init__.py          # StyleRouter orchestrator
 │   │   ├── classifiers.py       # RuleBasedClassifier + CentroidClassifier
+│   │   ├── semantic_classifier.py # SemanticStyleClassifier (MLP + n-gram)
 │   │   └── cache.py             # SQLite LRU cache for routing decisions
 │   │
 │   ├── segments/                # Long-form text processing
@@ -74,27 +76,57 @@ VoxID/
 │   │   ├── smoother.py          # StyleSmoother — transition smoothing
 │   │   └── stitcher.py          # AudioStitcher — adaptive pause concatenation
 │   │
+│   ├── context/                 # Context-aware generation
+│   │   ├── __init__.py          # ContextManager + ContextConditioner exports
+│   │   ├── manager.py           # Rolling-window segment history tracking
+│   │   └── conditioning.py      # SSML/parameter/stitch conditioning signals
+│   │
+│   ├── tokenizer/               # Unified speaker tokenization
+│   │   ├── __init__.py          # UnifiedTokenizer + EngineProjector exports
+│   │   ├── unified.py           # Orchestrates acoustic + semantic tokenization
+│   │   ├── acoustic.py          # WavTokenizer-based acoustic encoding (40 Hz)
+│   │   ├── semantic.py          # HuBERT-based semantic encoding (50 Hz)
+│   │   ├── projection.py        # Linear projection to engine-specific embeddings
+│   │   ├── config.py            # Tokenizer configuration
+│   │   └── types.py             # TokenizedSpeaker, AcousticTokens, SemanticTokens
+│   │
+│   ├── serving/                 # Multi-GPU async serving
+│   │   ├── __init__.py          # GPUDispatcher + config exports
+│   │   ├── dispatcher.py        # Request routing to worker pool
+│   │   ├── worker.py            # Single-GPU async worker with queue
+│   │   ├── config.py            # ServingConfig, WorkerConfig, GenerationRequest
+│   │   └── plugin.py            # vLLM plugin registration entry point
+│   │
 │   ├── security/                # Security subsystem
 │   │   ├── __init__.py
 │   │   ├── audit.py             # Source code audit scanner
 │   │   ├── consent.py           # Consent validation and enforcement
 │   │   ├── drift.py             # Voice drift detection (cosine similarity)
-│   │   └── watermark.py         # AudioSeal watermark embed/detect
+│   │   ├── watermark.py         # AudioSeal watermark embed/detect
+│   │   └── spoofing/            # Anti-spoofing ensemble
+│   │       ├── __init__.py      # SynthesisDetector + DiffusionArtifactAnalyzer
+│   │       ├── detector.py      # Ensemble detector (AASIST + RawNet2 + LCNN)
+│   │       ├── models.py        # Individual model wrappers (JIT-loaded)
+│   │       ├── diffusion.py     # Diffusion-specific artifact detection
+│   │       ├── features.py      # Mel, CQT, LFCC feature extraction
+│   │       └── config.py        # SpoofingConfig (weights, thresholds)
 │   │
 │   ├── api/                     # REST API (FastAPI)
 │   │   ├── __init__.py
-│   │   ├── app.py               # create_app factory
+│   │   ├── app.py               # create_app factory + lifespan (GPU dispatch)
 │   │   ├── auth.py              # API key middleware
 │   │   ├── rate_limit.py        # Sliding window rate limiter
-│   │   ├── deps.py              # Dependency injection (singleton VoxID)
+│   │   ├── deps.py              # Dependency injection (VoxID + GPUDispatcher)
 │   │   ├── models.py            # Request/response Pydantic models
+│   │   ├── static/enrollment/   # Web enrollment UI (HTML/CSS/JS)
 │   │   └── routes/
 │   │       ├── __init__.py      # Router aggregation
 │   │       ├── identities.py    # CRUD for identities + styles
 │   │       ├── generate.py      # Generation endpoints + SSE streaming
 │   │       ├── route.py         # Routing dry-run
 │   │       ├── health.py        # Health check
-│   │       └── enroll.py       # Enrollment session endpoints
+│   │       ├── enroll.py        # Enrollment session endpoints
+│   │       └── serving.py       # Multi-GPU dispatch health endpoint
 │   │
 │   ├── video/                   # Video pipeline integration
 │   │   ├── __init__.py
@@ -110,27 +142,24 @@ VoxID/
 │           ├── backend.py       # VoxIDBackend adapter for VoiceBox
 │           └── sync.py          # Bidirectional profile sync
 │
-├── tests/                       # Test suite (~609 tests)
+├── tests/                       # Test suite (~825 tests, 80 files)
 │   ├── conftest.py              # Shared fixtures
-│   ├── test_core.py             # (via test_dispatcher.py, test_engines.py)
-│   ├── test_adapters.py
+│   ├── test_core.py             # Core orchestrator
+│   ├── test_adapters.py         # Engine adapter protocol
 │   ├── test_router*.py          # Router, cache, classifiers, edge cases
+│   ├── test_semantic_classifier.py # Semantic MLP classifier
 │   ├── test_segmenter*.py       # Segmenter, smoother, stitcher, integration
 │   ├── test_security_*.py       # Audit, consent, drift, watermark
 │   ├── test_api*.py             # API, auth, rate limiting
 │   ├── test_video_*.py          # FFmpeg, Manim, Remotion, timing
 │   ├── test_voicebox_*.py       # VoiceBox backend, models, sync
-│   ├── test_phoneme_tracker.py     # Phoneme lookup + tracker
-│   ├── test_script_generator.py    # Greedy prompt selection
-│   ├── test_quality_gate.py        # Quality validation
-│   ├── test_preprocessor.py        # Audio preprocessing
-│   ├── test_enrollment_session.py  # Session state machine + store
-│   ├── test_recorder.py            # Audio recorder + VAD + save
-│   ├── test_cli_enroll.py          # CLI enroll command + import mode
-│   ├── test_enrollment_consent.py  # Consent recording
-│   ├── test_api_enroll.py          # REST API enrollment endpoints
-│   ├── test_enrollment_integration.py # End-to-end pipeline
-│   ├── test_vad.py                 # VAD backend abstraction
+│   ├── test_enrollment_*.py     # Full enrollment pipeline
+│   ├── test_vad.py              # VAD backend abstraction
+│   └── unit/                    # Unit tests for new modules
+│       ├── context/             # Context manager + conditioning
+│       ├── tokenizer/           # Unified tokenizer + projection
+│       ├── serving/             # GPU dispatcher + worker
+│       └── security/spoofing/   # Synthesis detector + features
 │
 ├── docs/
 │   ├── usage.md                 # User-facing usage guide
@@ -196,15 +225,60 @@ The router in `router/__init__.py` orchestrates two classifiers:
 
 Routing flow: single style available → return immediately → check SQLite cache → rule-based → centroid → pick higher confidence → cache result.
 
+### Three-Tier Style Router
+
+The router in `router/__init__.py` orchestrates three classification tiers:
+
+1. **RuleBasedClassifier** (Tier 1, ~0ms) — keyword/pattern heuristics, returns if confidence ≥ 0.9
+2. **SemanticStyleClassifier** (Tier 1.5, ~10ms) — MLP with character/word n-grams, trained with `fit()`, supports contextual blending with neighboring segments
+3. **CentroidClassifier** (Tier 2, ~15ms) — TF-IDF + cosine similarity against style centroids, always returns a decision
+
+All decisions are cached in SQLite with configurable TTL.
+
+### Context-Aware Generation
+
+The `context/` module provides prosodic continuity for long-form generation:
+
+- **ContextManager** — FIFO buffer tracking the last N segment histories (text, style, duration, final F0, energy, speaking rate)
+- **ContextConditioner** — translates context into three conditioning signals:
+  - **Text-level:** SSML prosody hints (`<prosody rate="..." pitch="...">`)
+  - **Parameter-level:** numeric continuity params (speed, pitch_hz, energy)
+  - **Stitch-level:** context-derived pause durations and crossfade settings
+
+### Unified Tokenizer
+
+The `tokenizer/` module creates engine-agnostic speaker representations:
+
+- **AcousticTokenizer** — WavTokenizer for causal acoustic encoding at 40 Hz
+- **SemanticTokenizer** — HuBERT-based semantic encoding at 50 Hz with k-means quantization
+- **UnifiedTokenizer** — combines both into a single unified embedding
+- **EngineProjector** — linear OLS projection from unified to engine-specific embedding space
+
+### Synthesis Detection
+
+The `security/spoofing/` module detects AI-generated audio:
+
+- **SynthesisDetector** — weighted ensemble of AASIST (0.4), RawNet2 (0.35), LCNN (0.25) producing GENUINE/SYNTHETIC/UNCERTAIN
+- **DiffusionArtifactAnalyzer** — detects diffusion-model-specific spectral artifacts (smoothness, discontinuity, regularity)
+
+### Multi-GPU Serving
+
+The `serving/` module provides async GPU dispatch:
+
+- **GPUDispatcher** — routes requests to a pool of TTSWorkers by engine affinity, using round-robin or least-loaded strategy
+- **TTSWorker** — single-GPU async worker with FIFO queue and backpressure (raises `QueueFullError` when full)
+- **vLLM Plugin** — registration entry point for vLLM integration via `register_voxid_plugin()`
+
 ### Segment Pipeline
 
 For long-form text (`generate_segments`):
 
 1. **TextSegmenter** splits at paragraph and sentence boundaries
-2. **StyleRouter** routes each segment independently
+2. **StyleRouter** routes each segment independently (three-tier cascade)
 3. **StyleSmoother** prevents rapid style switching (minimum segment length + confidence delta threshold)
-4. Audio generated per segment
-5. **AudioStitcher** concatenates with adaptive pauses (paragraph: 500ms, sentence: 200ms, clause: 100ms) and equal-power crossfades
+4. **ContextConditioner** generates prosodic continuity signals from rolling history
+5. Audio generated per segment with context-aware parameters
+6. **AudioStitcher** concatenates with adaptive pauses (paragraph: 500ms, sentence: 200ms, clause: 100ms) and equal-power crossfades
 
 ## Writing a New Adapter
 
@@ -424,4 +498,4 @@ test: add or update tests
 docs: documentation changes
 ```
 
-Required scopes for `feat` and `fix`: `core`, `api`, `adapters`, `router`, `segments`, `security`, `store`, `cli`, `video`, `enrollment`.
+Required scopes for `feat` and `fix`: `core`, `api`, `adapters`, `router`, `segments`, `security`, `store`, `cli`, `video`, `enrollment`, `tokenizer`, `context`, `serving`, `spoofing`, `ui`.
