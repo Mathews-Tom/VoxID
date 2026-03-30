@@ -2,8 +2,8 @@
 
 ## System Design Document
 
-**Version:** 1.0.0-draft
-**Status:** Design Phase
+**Version:** 0.2.0
+**Status:** Beta
 **Author:** Tom
 
 ---
@@ -38,12 +38,23 @@ graph TD
 
     subgraph Core Layer
         IR[Identity Registry]
-        SR[Style Router]
+        SR[Style Router<br/>3-tier]
         GD[Generation Dispatcher]
+        CM[Context Manager]
+        UT[Unified Tokenizer]
     end
 
     subgraph Storage Layer
         VPS[Voice Prompt Store<br/>SafeTensors + TOML]
+    end
+
+    subgraph Security Layer
+        SD[Synthesis Detector<br/>AASIST+RawNet2+LCNN]
+        DA[Diffusion Artifact<br/>Analyzer]
+    end
+
+    subgraph Serving Layer
+        DISP[GPU Dispatcher<br/>round-robin / least-loaded]
     end
 
     subgraph Adapter Layer
@@ -52,8 +63,13 @@ graph TD
         C[CosyVoice2]
         I[IndexTTS-2]
         CB[Chatterbox Family]
-        F5[F5-TTS]
     end
+
+    DISP --> Q
+    DISP --> F
+    DISP --> C
+    DISP --> I
+    DISP --> CB
 
     PL --> SM
     RA --> SM
@@ -618,21 +634,25 @@ VoxID is imported as `from voxid import VoxID`. The primary interface:
 
 The REST API is served by FastAPI on a configurable port (default: 8765).
 
-| Method | Endpoint                  | Description                |
-| ------ | ------------------------- | -------------------------- |
-| POST   | `/identities`             | Create identity            |
-| GET    | `/identities`             | List identities            |
-| GET    | `/identities/{id}`        | Get identity               |
-| DELETE | `/identities/{id}`        | Delete identity            |
-| POST   | `/identities/{id}/styles` | Add style                  |
-| GET    | `/identities/{id}/styles` | List styles                |
-| POST   | `/generate`               | Single-shot generation     |
-| POST   | `/generate/segments`      | Batch generation           |
-| POST   | `/generate/manifest`      | Manifest-driven generation |
-| POST   | `/generate/stream`        | Streaming generation (SSE) |
-| POST   | `/route`                  | Route without generating   |
-| POST   | `/identities/{id}/export` | Export archive             |
-| POST   | `/import`                 | Import archive             |
+| Method | Endpoint                             | Description                |
+| ------ | ------------------------------------ | -------------------------- |
+| POST   | `/api/identities`                    | Create identity            |
+| GET    | `/api/identities`                    | List identities            |
+| GET    | `/api/identities/{id}`               | Get identity               |
+| DELETE | `/api/identities/{id}`               | Delete identity            |
+| POST   | `/api/identities/{id}/styles`        | Add style                  |
+| GET    | `/api/identities/{id}/styles`        | List styles                |
+| POST   | `/api/generate`                      | Single-shot generation     |
+| POST   | `/api/generate/segments`             | Segment generation         |
+| POST   | `/api/generate/manifest`             | Manifest-driven generation |
+| POST   | `/api/generate/stream`               | Streaming generation (SSE) |
+| POST   | `/api/route`                         | Route without generating   |
+| GET    | `/api/health`                        | Health check               |
+| POST   | `/api/enroll/sessions`               | Create enrollment session  |
+| GET    | `/api/enroll/sessions/{id}`          | Get session status         |
+| POST   | `/api/enroll/sessions/{id}/samples`  | Upload audio sample        |
+| POST   | `/api/enroll/sessions/{id}/complete` | Finalize enrollment        |
+| GET    | `/api/v1/serving/health`             | Multi-GPU dispatch status  |
 
 All endpoints return JSON. `/generate/stream` returns `text/event-stream` with audio chunks base64-encoded in event data fields.
 
@@ -741,7 +761,137 @@ Engine adapter packages are optional dependencies installed per engine: `pip ins
 
 ---
 
-## 14. References
+## 14. Three-Tier Semantic Routing
+
+The original two-tier router (FastFit + hierarchical emotion predictor) has been refined into a three-tier cascade:
+
+| Tier | Classifier              | Latency | Confidence Threshold | Description                                              |
+| ---- | ----------------------- | ------- | -------------------- | -------------------------------------------------------- |
+| 1    | RuleBasedClassifier     | ~0ms    | ≥ 0.9                | Deterministic keyword/pattern heuristics                 |
+| 1.5  | SemanticStyleClassifier | ~10ms   | ≥ 0.8                | MLP with character n-grams (2-4) + word n-grams (1-2)    |
+| 2    | CentroidClassifier      | ~15ms   | Always returns       | TF-IDF bag-of-words cosine similarity to style centroids |
+
+The SemanticStyleClassifier uses a hashed feature vector (4096 features) fed through a 2-layer MLP (`input → ReLU(128) → softmax(n_classes)`) with Platt scaling for calibrated confidence. It supports contextual blending: 80% target segment weight + 20% weighted average of neighboring segments (decay factor 0.5).
+
+Training: `classifier.fit(texts, labels)` with n-gram feature extraction. Persistence via SafeTensors.
+
+---
+
+## 15. Unified Tokenizer Architecture
+
+The tokenizer creates engine-agnostic speaker representations by combining two complementary tokenization streams:
+
+```mermaid
+flowchart TD
+    A[Reference Audio] --> B[AcousticTokenizer<br/>WavTokenizer @ 40Hz]
+    A --> C[SemanticTokenizer<br/>HuBERT @ 50Hz + k-means]
+    B --> D[Acoustic Embedding<br/>temporal avg of codec states]
+    C --> E[Semantic Embedding<br/>mean-pooled HuBERT features]
+    D --> F[Concatenate]
+    E --> F
+    F --> G[Unified Embedding]
+    G --> H[EngineProjector<br/>OLS linear: W·x + b]
+    H --> I[Engine-Specific Embedding]
+```
+
+**AcousticTokenizer:** WavTokenizer (`novateur/WavTokenizer-medium-speech-75token`) extracts multi-codebook discrete tokens and derives a speaker embedding via temporal averaging of codec hidden states.
+
+**SemanticTokenizer:** HuBERT (`facebook/hubert-base-ls960`) layer 6 features quantized to 500 k-means clusters. Raw features retained for downstream alignment.
+
+**EngineProjector:** Ordinary least squares linear projection fitted on paired `(unified, engine)` embeddings. Formula: `engine_embedding = unified_embedding @ W + b`. Weights persisted as SafeTensors.
+
+---
+
+## 16. Context-Aware Generation
+
+The context system provides prosodic continuity across long documents by tracking a rolling window of segment histories and generating conditioning signals.
+
+### Context Manager
+
+A FIFO buffer (default window_size=5) of `SegmentHistory` entries, each containing: text, style, duration_ms, final F0 (Hz), final energy (RMS), speaking rate (words/sec).
+
+Document position is computed as `segment_index / total_segments` for a [0, 1] range.
+
+### Context Conditioner
+
+Translates `GenerationContext` into three independent conditioning strategies:
+
+| Strategy        | Output                      | Purpose                                           |
+| --------------- | --------------------------- | ------------------------------------------------- |
+| Text-level      | SSML `<prosody>` tags       | Engine-interpretable prosody hints (rate, pitch)  |
+| Parameter-level | `{speed, pitch_hz, energy}` | Numeric continuity params passed to adapter       |
+| Stitch-level    | `{pause_ms, crossfade_ms}`  | Context-derived pause durations for AudioStitcher |
+
+Strength parameter (0.0–1.0) acts as a master dial. Each strategy can be independently enabled/disabled.
+
+---
+
+## 17. Synthesis Detection
+
+Anti-spoofing ensemble for detecting AI-generated audio.
+
+### Ensemble Architecture
+
+Three complementary models with weighted voting:
+
+| Model   | Weight | Input           | Architecture              | Detection Strength                      |
+| ------- | ------ | --------------- | ------------------------- | --------------------------------------- |
+| AASIST  | 0.40   | Mel spectrogram | Graph attention + pooling | Spectral artifact detection             |
+| RawNet2 | 0.35   | Raw waveform    | Sinc filters + GRU        | Waveform-level anomaly detection        |
+| LCNN    | 0.25   | LFCC features   | Light CNN                 | Frequency cepstral coefficient analysis |
+
+### Decision Logic
+
+1. Each model produces a spoofing probability [0, 1]
+2. Weighted ensemble score = Σ(weight_i × score_i)
+3. Model agreement = fraction of models agreeing on label
+4. Classification: score ≥ 0.7 → SYNTHETIC, score ≤ 0.4 → GENUINE, else UNCERTAIN
+5. Minimum agreement threshold: 0.5
+
+### Diffusion Artifact Analysis
+
+Separate analyzer detecting diffusion-model-specific synthesis patterns:
+
+- **Spectral smoothness:** Ratio of high-frequency energy (unnatural smoothness in diffusion outputs)
+- **Temporal discontinuity:** Spectral flux spikes at chunk boundaries
+- **Harmonic regularity:** Detection of unnaturally perfect harmonic structure
+
+---
+
+## 18. Multi-GPU Serving Architecture
+
+Async GPU dispatcher for high-throughput TTS serving.
+
+```mermaid
+flowchart TD
+    REQ[GenerationRequest] --> DISP[GPUDispatcher]
+    DISP --> |engine affinity| SEL{Dispatch Strategy}
+    SEL --> |round_robin| W1[TTSWorker cuda:0<br/>qwen3-tts]
+    SEL --> |round_robin| W2[TTSWorker cuda:1<br/>fish-speech]
+    SEL --> |least_loaded| W3[TTSWorker cuda:2<br/>qwen3-tts]
+    W1 --> Q1[Async FIFO Queue<br/>max_depth=16]
+    W2 --> Q2[Async FIFO Queue<br/>max_depth=8]
+    W3 --> Q3[Async FIFO Queue<br/>max_depth=16]
+    Q1 --> RES[GenerationResult]
+    Q2 --> RES
+    Q3 --> RES
+```
+
+### Worker Lifecycle
+
+Workers transition through: `STARTING → READY → UNHEALTHY → STOPPED`. Health checks run at `health_check_interval_s` (default 30s). Workers track queue_depth, total_processed, total_errors, and gpu_memory_bytes.
+
+### Backpressure
+
+Each worker has a bounded async queue (`max_queue_depth`). When full, `submit()` raises `QueueFullError` immediately rather than blocking — the dispatcher selects the next available worker.
+
+### vLLM Integration
+
+The `plugin.py` module exposes `register_voxid_plugin()` for vLLM's plugin discovery mechanism. The serving config is loaded from TOML and registered as a global singleton accessible via `get_registered_config()`.
+
+---
+
+## 19. References
 
 ### Embedding Fusion
 
