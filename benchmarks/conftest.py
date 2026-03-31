@@ -13,7 +13,8 @@ import numpy.typing as npt
 import pytest
 
 _SAMPLE_RATE = 24_000
-_RESULTS_PATH = Path(__file__).parent / "results" / "baseline.json"
+_DEFAULT_RESULTS_FILE = os.environ.get("BENCHMARK_OUTPUT", "baseline.json")
+_RESULTS_PATH = Path(__file__).parent / "results" / _DEFAULT_RESULTS_FILE
 
 
 def _make_audio(seconds: int) -> npt.NDArray[np.float64]:
@@ -63,10 +64,10 @@ def _ram_gb() -> float:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def write_baseline(
+def write_results(
     results_collector: dict[str, Any],
 ) -> Generator[None, None, None]:
-    """Write benchmark results to baseline.json after the session ends."""
+    """Write benchmark results to the configured output file after the session ends."""
     yield
 
     cpu = platform.processor() or platform.machine() or "unknown"

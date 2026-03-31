@@ -1,0 +1,60 @@
+{
+  "baseline_file": "baseline.json",
+  "optimized_file": "optimized.json",
+  "comparisons": {
+    "trim_silence_2s": {
+      "baseline_p50": 3.237504279240966e-05,
+      "optimized_p50": 3.450002986937761e-05,
+      "speedup": 0.9384
+    },
+    "trim_silence_15s": {
+      "baseline_p50": 0.00019087502732872963,
+      "optimized_p50": 0.00018912501400336623,
+      "speedup": 1.0093
+    },
+    "trim_silence_60s": {
+      "baseline_p50": 0.0007705205352976918,
+      "optimized_p50": 0.0007812915137037635,
+      "speedup": 0.9862
+    },
+    "compute_speech_ratio_2s": {
+      "baseline_p50": 3.220798680558801e-05,
+      "optimized_p50": 3.147951792925596e-05,
+      "speedup": 1.0231
+    },
+    "compute_speech_ratio_15s": {
+      "baseline_p50": 0.00019797898130491376,
+      "optimized_p50": 0.0001921460498124361,
+      "speedup": 1.0304
+    },
+    "compute_speech_ratio_60s": {
+      "baseline_p50": 0.0008731044363230467,
+      "optimized_p50": 0.0008550629136152565,
+      "speedup": 1.0211
+    },
+    "resample_linear_2s": {
+      "baseline_p50": 0.00038572947960346937,
+      "optimized_p50": 0.0004087090492248535,
+      "speedup": 0.9438
+    },
+    "resample_linear_15s": {
+      "baseline_p50": 0.0028743749717250466,
+      "optimized_p50": 0.003053229534998536,
+      "speedup": 0.9414
+    },
+    "resample_linear_60s": {
+      "baseline_p50": 0.011535854486282915,
+      "optimized_p50": 0.012236270995344967,
+      "speedup": 0.9428
+    }
+  },
+  "targets_met": false,
+  "unmet_targets": [
+    "trim_silence_2s: 0.94x (target \u22655.0x)",
+    "trim_silence_15s: 1.01x (target \u22655.0x)",
+    "trim_silence_60s: 0.99x (target \u22655.0x)",
+    "compute_speech_ratio_2s: 1.02x (target \u22655.0x)",
+    "compute_speech_ratio_15s: 1.03x (target \u22655.0x)",
+    "compute_speech_ratio_60s: 1.02x (target \u22655.0x)"
+  ]
+}
