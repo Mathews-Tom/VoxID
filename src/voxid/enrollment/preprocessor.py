@@ -5,6 +5,8 @@ import logging
 import numpy as np
 import pyloudnorm as pyln
 
+from voxid.audio_utils import resample_linear
+
 logger = logging.getLogger(__name__)
 
 _EPSILON = 1e-9
@@ -71,9 +73,7 @@ class AudioPreprocessor:
         if n_out == 0:
             return np.zeros(0, dtype=audio.dtype)
 
-        indices = np.linspace(0, len(audio) - 1, n_out)
-        result: np.ndarray = np.interp(indices, np.arange(len(audio)), audio)
-        return result
+        return resample_linear(audio, n_out)
 
     def to_mono(self, audio: np.ndarray) -> np.ndarray:
         """Convert multi-channel audio to mono by averaging channels."""
@@ -95,21 +95,17 @@ class AudioPreprocessor:
         if n_frames == 0:
             return audio
 
-        # Find first and last frame above threshold
-        first_active = -1
-        last_active = -1
+        # Find first and last frame above threshold — vectorized
+        frames = audio[: n_frames * frame_size].reshape(n_frames, frame_size)
+        rms_values = np.sqrt(np.mean(frames.astype(np.float64) ** 2, axis=1))
+        active = rms_values > threshold
 
-        for i in range(n_frames):
-            frame = audio[i * frame_size : (i + 1) * frame_size]
-            rms = float(np.sqrt(np.mean(frame.astype(np.float64) ** 2)))
-            if rms > threshold:
-                if first_active < 0:
-                    first_active = i
-                last_active = i
-
-        if first_active < 0:
+        if not active.any():
             # All silence — return minimal audio (one frame)
             return audio[:frame_size]
+
+        first_active = int(np.argmax(active))
+        last_active = int(n_frames - 1 - np.argmax(active[::-1]))
 
         pad_samples = int(sr * self._silence_pad_ms / 1000)
         start = max(0, first_active * frame_size - pad_samples)

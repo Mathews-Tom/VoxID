@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
+from voxid.audio_utils import resample_linear
+
 from .consent import ConsentManager
 from .health import EnrollmentHealthReport, check_enrollment_health
 from .multilingual import (
@@ -257,11 +259,7 @@ class EnrollmentPipeline:
                 target_sr = int(sr)
             elif int(sr) != target_sr:
                 n_out = int(len(arr) * target_sr / sr)
-                arr = np.interp(
-                    np.linspace(0, len(arr) - 1, n_out),
-                    np.arange(len(arr)),
-                    arr,
-                )
+                arr = resample_linear(arr, n_out)
             chunks.append(arr)
             texts.append(sample.prompt_text)
 

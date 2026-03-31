@@ -196,6 +196,7 @@ select = ["E", "F", "I", "N", "W", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+python_files = ["test_*.py", "bench_*.py"]
 addopts = "--strict-markers -v"
 
 [tool.uv]

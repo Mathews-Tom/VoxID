@@ -6,6 +6,8 @@ from enum import StrEnum
 
 import numpy as np
 
+from voxid.audio_utils import resample_linear, resample_linear_torch
+
 from .recorder import detect_speech_energy
 
 logger = logging.getLogger(__name__)
@@ -94,14 +96,7 @@ def _resample_tensor(
 
     assert isinstance(tensor, torch.Tensor)
     n_out = int(len(tensor) * sr_out / sr_in)
-    indices = torch.linspace(0, len(tensor) - 1, n_out)
-    return torch.from_numpy(
-        np.interp(
-            indices.numpy(),
-            np.arange(len(tensor)),
-            tensor.numpy(),
-        ).astype(np.float32),
-    )
+    return resample_linear_torch(tensor, n_out)
 
 
 def detect_speech_webrtc(
@@ -127,11 +122,7 @@ def detect_speech_webrtc(
     if sr not in supported_rates:
         # Resample to 16kHz
         n_out = int(len(audio) * 16000 / sr)
-        audio_resampled = np.interp(
-            np.linspace(0, len(audio) - 1, n_out),
-            np.arange(len(audio)),
-            audio.astype(np.float64),
-        ).astype(np.float32)
+        audio_resampled = resample_linear(audio, n_out)
         effective_sr = 16000
         scale = sr / effective_sr
     else:

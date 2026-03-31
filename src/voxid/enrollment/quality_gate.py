@@ -183,13 +183,10 @@ def _compute_speech_ratio(
         return 0.0
 
     threshold_linear = 10.0 ** (energy_threshold_db / 20.0)
-    speech_frames = 0
 
-    for i in range(n_frames):
-        frame = audio_f[i * frame_size : (i + 1) * frame_size]
-        rms = float(np.sqrt(np.mean(frame ** 2)))
-        if rms > threshold_linear:
-            speech_frames += 1
+    frames = audio_f[: n_frames * frame_size].reshape(n_frames, frame_size)
+    rms_values = np.sqrt(np.mean(frames ** 2, axis=1))
+    speech_frames = int(np.sum(rms_values > threshold_linear))
 
     return speech_frames / n_frames
 
