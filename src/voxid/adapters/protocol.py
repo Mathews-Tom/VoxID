@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 import numpy as np
+import numpy.typing as npt
 
 
 @dataclass(frozen=True)
@@ -42,7 +43,7 @@ class TTSEngineAdapter(Protocol):
         prompt_path: Path,
         language: str = "en",
         context_params: dict[str, float] | None = None,
-    ) -> tuple[np.ndarray, int]:
+    ) -> tuple[npt.NDArray[np.float64], int]:
         """Generate audio. Returns (waveform, sample_rate).
 
         context_params: optional continuity parameters from ContextConditioner.
@@ -56,6 +57,6 @@ class TTSEngineAdapter(Protocol):
         text: str,
         prompt_path: Path,
         language: str = "en",
-    ) -> Iterator[np.ndarray]:
+    ) -> Iterator[npt.NDArray[np.float64]]:
         """Stream audio chunks."""
         ...
