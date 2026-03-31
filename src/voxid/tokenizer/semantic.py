@@ -7,6 +7,8 @@ import numpy as np
 import soundfile as sf
 from numpy.typing import NDArray
 
+from voxid.audio_utils import resample_linear
+
 from .config import SemanticConfig
 from .types import SemanticTokens
 
@@ -87,12 +89,8 @@ class SemanticTokenizer:
         if audio.ndim > 1:
             audio = audio.mean(axis=1)
         if sr != self._config.sample_rate:
-            duration = len(audio) / sr
-            target_len = int(duration * self._config.sample_rate)
-            indices = np.linspace(0, len(audio) - 1, target_len)
-            audio = np.interp(
-                indices, np.arange(len(audio)), audio,
-            ).astype(np.float32)
+            target_len = int(len(audio) / sr * self._config.sample_rate)
+            audio = resample_linear(audio, target_len)
         return np.asarray(audio, dtype=np.float32)
 
     def extract_features(self, audio_path: Path) -> NDArray[np.float32]:
@@ -144,12 +142,8 @@ class SemanticTokenizer:
         if audio.ndim > 1:
             audio = audio.mean(axis=1)
         if sample_rate != self._config.sample_rate:
-            duration = len(audio) / sample_rate
-            target_len = int(duration * self._config.sample_rate)
-            indices = np.linspace(0, len(audio) - 1, target_len)
-            audio = np.interp(
-                indices, np.arange(len(audio)), audio,
-            ).astype(np.float32)
+            target_len = int(len(audio) / sample_rate * self._config.sample_rate)
+            audio = resample_linear(audio, target_len)
 
         inputs = self._processor(
             audio,

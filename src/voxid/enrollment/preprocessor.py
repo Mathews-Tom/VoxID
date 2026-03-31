@@ -5,6 +5,8 @@ import logging
 import numpy as np
 import pyloudnorm as pyln
 
+from voxid.audio_utils import resample_linear
+
 logger = logging.getLogger(__name__)
 
 _EPSILON = 1e-9
@@ -71,9 +73,7 @@ class AudioPreprocessor:
         if n_out == 0:
             return np.zeros(0, dtype=audio.dtype)
 
-        indices = np.linspace(0, len(audio) - 1, n_out)
-        result: np.ndarray = np.interp(indices, np.arange(len(audio)), audio)
-        return result
+        return resample_linear(audio, n_out)
 
     def to_mono(self, audio: np.ndarray) -> np.ndarray:
         """Convert multi-channel audio to mono by averaging channels."""
