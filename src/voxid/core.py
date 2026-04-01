@@ -159,12 +159,12 @@ class VoxID:
 
     def _manifest_id(self, manifest: SceneManifest) -> str:
         """Extract or compute a stable manifest identifier."""
-        return str(manifest.metadata.get(
-            "id",
-            hashlib.sha256(
-                manifest.model_dump_json().encode()
-            ).hexdigest()[:16],
-        ))
+        return str(
+            manifest.metadata.get(
+                "id",
+                hashlib.sha256(manifest.model_dump_json().encode()).hexdigest()[:16],
+            )
+        )
 
     def _resolve_scene_style(
         self,
@@ -312,7 +312,10 @@ class VoxID:
         identity = self._store.get_identity(identity_id)
         available = self._available_styles(identity_id)
         style_id = self._resolve_scene_style(
-            text, style, available, identity.default_style,
+            text,
+            style,
+            available,
+            identity.default_style,
         )
 
         style_obj = self._store.get_style(identity_id, style_id)
@@ -518,9 +521,7 @@ class VoxID:
         mid = self._manifest_id(manifest)
 
         if output_dir is None:
-            output_dir = (
-                self._config.store_path / "output" / "manifest" / mid
-            )
+            output_dir = self._config.store_path / "output" / "manifest" / mid
         output_dir.mkdir(parents=True, exist_ok=True)
 
         generated_scenes: list[GeneratedScene] = []
@@ -528,7 +529,10 @@ class VoxID:
 
         for scene in manifest.scenes:
             style_id = self._resolve_scene_style(
-                scene.text, scene.style, available_styles, identity.default_style,
+                scene.text,
+                scene.style,
+                available_styles,
+                identity.default_style,
             )
             style_obj = self._store.get_style(manifest.identity_id, style_id)
             eng = manifest.engine or style_obj.default_engine
@@ -599,7 +603,10 @@ class VoxID:
 
         for scene in manifest.scenes:
             style_id = self._resolve_scene_style(
-                scene.text, scene.style, available_styles, identity.default_style,
+                scene.text,
+                scene.style,
+                available_styles,
+                identity.default_style,
             )
             style_obj = self._store.get_style(manifest.identity_id, style_id)
             eng = manifest.engine or style_obj.default_engine
@@ -632,7 +639,9 @@ class VoxID:
 
         exporter = ArchiveExporter(self._store)
         return exporter.export(
-            identity_id, output_path, signing_key,
+            identity_id,
+            output_path,
+            signing_key,
         )
 
     def import_identity(
@@ -645,7 +654,8 @@ class VoxID:
 
         importer = ArchiveImporter(self._store)
         return importer.import_archive(
-            archive_path, signing_key,
+            archive_path,
+            signing_key,
         )
 
     def delete_identity(self, identity_id: str) -> None:
@@ -666,7 +676,9 @@ class VoxID:
         identity = self._store.get_identity(identity_id)
         available = self._available_styles(identity_id)
         decision = self._router.route(
-            text, available, identity.default_style,
+            text,
+            available,
+            identity.default_style,
         )
         return {
             "style": decision.style,
@@ -686,11 +698,14 @@ class VoxID:
 
         pipeline = EnrollmentPipeline(self)
         return pipeline.create_session(
-            identity_id, styles, prompts_per_style,
+            identity_id,
+            styles,
+            prompts_per_style,
         )
 
     def check_enrollment_health(
-        self, identity_id: str,
+        self,
+        identity_id: str,
     ) -> Any:
         """Assess whether an identity's enrollment should be refreshed."""
         from voxid.enrollment.health import check_enrollment_health
