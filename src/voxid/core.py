@@ -151,6 +151,34 @@ class VoxID:
             cache_ttl=self._config.cache_ttl_seconds,
         )
 
+    def _available_styles(self, identity_id: str) -> list[str]:
+        """Return registered styles, falling back to the identity's default."""
+        identity = self._store.get_identity(identity_id)
+        styles = self._store.list_styles(identity_id)
+        return styles if styles else [identity.default_style]
+
+    def _manifest_id(self, manifest: SceneManifest) -> str:
+        """Extract or compute a stable manifest identifier."""
+        return str(
+            manifest.metadata.get(
+                "id",
+                hashlib.sha256(manifest.model_dump_json().encode()).hexdigest()[:16],
+            )
+        )
+
+    def _resolve_scene_style(
+        self,
+        scene_text: str,
+        scene_style: str | None,
+        available_styles: list[str],
+        default_style: str,
+    ) -> str:
+        """Return explicit scene style or route via StyleRouter."""
+        if scene_style is not None:
+            return scene_style
+        decision = self._router.route(scene_text, available_styles, default_style)
+        return decision.style
+
     def _select_engine(
         self,
         language: str,
@@ -282,18 +310,13 @@ class VoxID:
         engine: str | None = None,
     ) -> tuple[Path, int]:
         identity = self._store.get_identity(identity_id)
-
-        if style is not None:
-            style_id = style
-        else:
-            available = self._store.list_styles(identity_id)
-            if not available:
-                style_id = identity.default_style
-            else:
-                decision = self._router.route(
-                    text, available, identity.default_style,
-                )
-                style_id = decision.style
+        available = self._available_styles(identity_id)
+        style_id = self._resolve_scene_style(
+            text,
+            style,
+            available,
+            identity.default_style,
+        )
 
         style_obj = self._store.get_style(identity_id, style_id)
         eng = engine or style_obj.default_engine
@@ -346,9 +369,7 @@ class VoxID:
         stitched path, and the generation plan.
         """
         identity = self._store.get_identity(identity_id)
-        available_styles = self._store.list_styles(identity_id)
-        if not available_styles:
-            available_styles = [identity.default_style]
+        available_styles = self._available_styles(identity_id)
 
         _, plan = build_segment_plan(
             text=text,
@@ -496,35 +517,23 @@ class VoxID:
         Returns GenerationResult with per-scene details.
         """
         identity = self._store.get_identity(manifest.identity_id)
-        available_styles = self._store.list_styles(manifest.identity_id)
-        if not available_styles:
-            available_styles = [identity.default_style]
-
-        manifest_id = manifest.metadata.get(
-            "id",
-            hashlib.sha256(
-                manifest.model_dump_json().encode()
-            ).hexdigest()[:16],
-        )
+        available_styles = self._available_styles(manifest.identity_id)
+        mid = self._manifest_id(manifest)
 
         if output_dir is None:
-            output_dir = (
-                self._config.store_path / "output" / "manifest" / str(manifest_id)
-            )
+            output_dir = self._config.store_path / "output" / "manifest" / mid
         output_dir.mkdir(parents=True, exist_ok=True)
 
         generated_scenes: list[GeneratedScene] = []
         audio_segments: list[tuple[np.ndarray, int]] = []
 
         for scene in manifest.scenes:
-            if scene.style is not None:
-                style_id = scene.style
-            else:
-                decision = self._router.route(
-                    scene.text, available_styles, identity.default_style,
-                )
-                style_id = decision.style
-
+            style_id = self._resolve_scene_style(
+                scene.text,
+                scene.style,
+                available_styles,
+                identity.default_style,
+            )
             style_obj = self._store.get_style(manifest.identity_id, style_id)
             eng = manifest.engine or style_obj.default_engine
 
@@ -572,7 +581,7 @@ class VoxID:
         total_duration_ms = sum(s.duration_ms for s in generated_scenes)
 
         return GenerationResult(
-            manifest_id=str(manifest_id),
+            manifest_id=mid,
             scenes=generated_scenes,
             total_duration_ms=total_duration_ms,
         )
@@ -587,28 +596,18 @@ class VoxID:
         but audio_path="" and duration_ms=0.
         """
         identity = self._store.get_identity(manifest.identity_id)
-        available_styles = self._store.list_styles(manifest.identity_id)
-        if not available_styles:
-            available_styles = [identity.default_style]
-
-        manifest_id = manifest.metadata.get(
-            "id",
-            hashlib.sha256(
-                manifest.model_dump_json().encode()
-            ).hexdigest()[:16],
-        )
+        available_styles = self._available_styles(manifest.identity_id)
+        mid = self._manifest_id(manifest)
 
         planned_scenes: list[GeneratedScene] = []
 
         for scene in manifest.scenes:
-            if scene.style is not None:
-                style_id = scene.style
-            else:
-                decision = self._router.route(
-                    scene.text, available_styles, identity.default_style,
-                )
-                style_id = decision.style
-
+            style_id = self._resolve_scene_style(
+                scene.text,
+                scene.style,
+                available_styles,
+                identity.default_style,
+            )
             style_obj = self._store.get_style(manifest.identity_id, style_id)
             eng = manifest.engine or style_obj.default_engine
 
@@ -624,7 +623,7 @@ class VoxID:
             )
 
         return GenerationResult(
-            manifest_id=str(manifest_id),
+            manifest_id=mid,
             scenes=planned_scenes,
             total_duration_ms=0,
         )
@@ -640,7 +639,9 @@ class VoxID:
 
         exporter = ArchiveExporter(self._store)
         return exporter.export(
-            identity_id, output_path, signing_key,
+            identity_id,
+            output_path,
+            signing_key,
         )
 
     def import_identity(
@@ -653,7 +654,8 @@ class VoxID:
 
         importer = ArchiveImporter(self._store)
         return importer.import_archive(
-            archive_path, signing_key,
+            archive_path,
+            signing_key,
         )
 
     def delete_identity(self, identity_id: str) -> None:
@@ -672,11 +674,11 @@ class VoxID:
     ) -> dict[str, Any]:
         """Dry-run style classification using the StyleRouter."""
         identity = self._store.get_identity(identity_id)
-        available = self._store.list_styles(identity_id)
-        if not available:
-            available = [identity.default_style]
+        available = self._available_styles(identity_id)
         decision = self._router.route(
-            text, available, identity.default_style,
+            text,
+            available,
+            identity.default_style,
         )
         return {
             "style": decision.style,
@@ -696,11 +698,14 @@ class VoxID:
 
         pipeline = EnrollmentPipeline(self)
         return pipeline.create_session(
-            identity_id, styles, prompts_per_style,
+            identity_id,
+            styles,
+            prompts_per_style,
         )
 
     def check_enrollment_health(
-        self, identity_id: str,
+        self,
+        identity_id: str,
     ) -> Any:
         """Assess whether an identity's enrollment should be refreshed."""
         from voxid.enrollment.health import check_enrollment_health
