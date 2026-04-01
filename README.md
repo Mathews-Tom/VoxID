@@ -1,5 +1,11 @@
 # VoxID
 
+[![Release](https://img.shields.io/github/v/release/Mathews-Tom/VoxID?label=release&color=blue)](https://github.com/Mathews-Tom/VoxID/releases)
+[![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](https://pypi.org/project/voxid/)
+[![License](https://img.shields.io/github/license/Mathews-Tom/VoxID?color=orange)](LICENSE)
+[![Issues](https://img.shields.io/github/issues/Mathews-Tom/VoxID)](https://github.com/Mathews-Tom/VoxID/issues)
+[![PRs](https://img.shields.io/github/issues-pr/Mathews-Tom/VoxID)](https://github.com/Mathews-Tom/VoxID/pulls)
+
 Voice Identity Management Platform — a local-first Python library, CLI, and REST API for managing persistent voice identities across multiple TTS engines.
 
 VoxID sits between your application and TTS engines. It introduces **voice identities** — named entities that own multiple voice styles, each backed by precomputed speaker embeddings, versioned on disk, and automatically selected based on text content.
@@ -281,4 +287,4 @@ max_embedding_versions = 3
 
 ## License
 
-MIT
+Apache-2.0 — see [LICENSE](LICENSE) for details.
