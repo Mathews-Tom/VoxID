@@ -151,6 +151,12 @@ class VoxID:
             cache_ttl=self._config.cache_ttl_seconds,
         )
 
+    def _available_styles(self, identity_id: str) -> list[str]:
+        """Return registered styles, falling back to the identity's default."""
+        identity = self._store.get_identity(identity_id)
+        styles = self._store.list_styles(identity_id)
+        return styles if styles else [identity.default_style]
+
     def _select_engine(
         self,
         language: str,
@@ -282,18 +288,15 @@ class VoxID:
         engine: str | None = None,
     ) -> tuple[Path, int]:
         identity = self._store.get_identity(identity_id)
+        available = self._available_styles(identity_id)
 
         if style is not None:
             style_id = style
         else:
-            available = self._store.list_styles(identity_id)
-            if not available:
-                style_id = identity.default_style
-            else:
-                decision = self._router.route(
-                    text, available, identity.default_style,
-                )
-                style_id = decision.style
+            decision = self._router.route(
+                text, available, identity.default_style,
+            )
+            style_id = decision.style
 
         style_obj = self._store.get_style(identity_id, style_id)
         eng = engine or style_obj.default_engine
@@ -346,9 +349,7 @@ class VoxID:
         stitched path, and the generation plan.
         """
         identity = self._store.get_identity(identity_id)
-        available_styles = self._store.list_styles(identity_id)
-        if not available_styles:
-            available_styles = [identity.default_style]
+        available_styles = self._available_styles(identity_id)
 
         _, plan = build_segment_plan(
             text=text,
@@ -496,9 +497,7 @@ class VoxID:
         Returns GenerationResult with per-scene details.
         """
         identity = self._store.get_identity(manifest.identity_id)
-        available_styles = self._store.list_styles(manifest.identity_id)
-        if not available_styles:
-            available_styles = [identity.default_style]
+        available_styles = self._available_styles(manifest.identity_id)
 
         manifest_id = manifest.metadata.get(
             "id",
@@ -587,9 +586,7 @@ class VoxID:
         but audio_path="" and duration_ms=0.
         """
         identity = self._store.get_identity(manifest.identity_id)
-        available_styles = self._store.list_styles(manifest.identity_id)
-        if not available_styles:
-            available_styles = [identity.default_style]
+        available_styles = self._available_styles(manifest.identity_id)
 
         manifest_id = manifest.metadata.get(
             "id",
@@ -672,9 +669,7 @@ class VoxID:
     ) -> dict[str, Any]:
         """Dry-run style classification using the StyleRouter."""
         identity = self._store.get_identity(identity_id)
-        available = self._store.list_styles(identity_id)
-        if not available:
-            available = [identity.default_style]
+        available = self._available_styles(identity_id)
         decision = self._router.route(
             text, available, identity.default_style,
         )
