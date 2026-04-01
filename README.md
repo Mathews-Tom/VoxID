@@ -281,4 +281,4 @@ max_embedding_versions = 3
 
 ## License
 
-MIT
+Apache-2.0 — see [LICENSE](LICENSE) for details.
