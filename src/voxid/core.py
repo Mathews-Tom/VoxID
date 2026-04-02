@@ -302,6 +302,35 @@ class VoxID:
         )
         return output_path
 
+    def _synthesize(
+        self,
+        text: str,
+        identity_id: str,
+        style_id: str,
+        engine: str | None = None,
+        language: str | None = None,
+        context_params: dict[str, float] | None = None,
+    ) -> tuple[np.ndarray, int, str]:
+        """Core synthesis: resolve engine, ensure prompt, generate waveform.
+
+        Returns (waveform, sample_rate, engine_used).
+        """
+        style_obj = self._store.get_style(identity_id, style_id)
+        eng = engine or style_obj.default_engine
+        lang = language or style_obj.language
+
+        prompt_path = self._ensure_prompt(identity_id, style_id, eng)
+        adapter_cls = _get_adapter_for_engine(eng)
+        adapter = adapter_cls()
+
+        waveform, sr = adapter.generate(
+            text,
+            prompt_path,
+            language=lang,
+            context_params=context_params,
+        )
+        return waveform, sr, eng
+
     def generate(
         self,
         text: str,
@@ -318,19 +347,7 @@ class VoxID:
             identity.default_style,
         )
 
-        style_obj = self._store.get_style(identity_id, style_id)
-        eng = engine or style_obj.default_engine
-
-        prompt_path = self._ensure_prompt(identity_id, style_id, eng)
-
-        adapter_cls = _get_adapter_for_engine(eng)
-        adapter = adapter_cls()
-
-        waveform, sr = adapter.generate(
-            text,
-            prompt_path,
-            language=style_obj.language,
-        )
+        waveform, sr, _ = self._synthesize(text, identity_id, style_id, engine)
 
         output_dir = self._config.store_path / "output"
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -408,14 +425,6 @@ class VoxID:
         stitch_params_list: list[StitchParams] = []
 
         for item in plan:
-            style_obj = self._store.get_style(identity_id, item.style)
-            eng = engine or style_obj.default_engine
-
-            prompt_path = self._ensure_prompt(identity_id, item.style, eng)
-
-            adapter_cls = _get_adapter_for_engine(eng)
-            adapter = adapter_cls()
-
             # Build conditioning for this segment
             gen_context = ctx_mgr.build_context(item.index)
             cond_result = (
@@ -432,31 +441,29 @@ class VoxID:
                     gen_text = (
                         cond_result.ssml_prefix + item.text + cond_result.ssml_suffix
                     )
-                if cond_result.context_params:
-                    context_params = cond_result.context_params
+                context_params = cond_result.context_params or None
 
-            waveform, sr = adapter.generate(
+            waveform, sr, _ = self._synthesize(
                 gen_text,
-                prompt_path,
-                language=style_obj.language,
+                identity_id,
+                item.style,
+                engine,
                 context_params=context_params,
             )
 
-            seg_filename = f"segment_{item.index:04d}.wav"
-            seg_path = output_dir / seg_filename
+            seg_path = output_dir / f"segment_{item.index:04d}.wav"
             sf.write(str(seg_path), waveform, sr)
-
             duration_ms = int(len(waveform) / sr * 1000)
 
-            # Extract trailing prosodic features and record history
-            history_entry = _extract_segment_history(
-                text=item.text,
-                style=item.style,
-                waveform=waveform,
-                sample_rate=sr,
-                duration_ms=duration_ms,
+            ctx_mgr.record(
+                _extract_segment_history(
+                    text=item.text,
+                    style=item.style,
+                    waveform=waveform,
+                    sample_rate=sr,
+                    duration_ms=duration_ms,
+                )
             )
-            ctx_mgr.record(history_entry)
 
             segment_results.append(
                 SegmentResult(
@@ -471,10 +478,9 @@ class VoxID:
             )
             audio_segments.append((waveform, sr))
             boundary_types.append(item.boundary_type)
-            if cond_result:
-                stitch_params_list.append(cond_result.stitch)
-            else:
-                stitch_params_list.append(StitchParams(pause_ms=200))
+            stitch_params_list.append(
+                cond_result.stitch if cond_result else StitchParams(pause_ms=200)
+            )
 
         stitched_path: Path | None = None
         if stitch and audio_segments:
@@ -534,22 +540,15 @@ class VoxID:
                 available_styles,
                 identity.default_style,
             )
-            style_obj = self._store.get_style(manifest.identity_id, style_id)
-            eng = manifest.engine or style_obj.default_engine
 
-            prompt_path = self._ensure_prompt(manifest.identity_id, style_id, eng)
-
-            adapter_cls = _get_adapter_for_engine(eng)
-            adapter = adapter_cls()
-
-            waveform, sr = adapter.generate(
+            waveform, sr, eng = self._synthesize(
                 scene.text,
-                prompt_path,
-                language=style_obj.language,
+                manifest.identity_id,
+                style_id,
+                manifest.engine,
             )
 
             duration_ms = len(waveform) * 1000 // sr
-
             scene_path = output_dir / f"{scene.scene_id}.wav"
             sf.write(str(scene_path), waveform, sr)
 
