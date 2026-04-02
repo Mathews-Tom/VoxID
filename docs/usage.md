@@ -8,7 +8,7 @@ This guide covers the three interfaces to VoxID: the Python library, the CLI, an
 
 **Style** — a named voice register within an identity (e.g., `conversational`, `technical`). Defined by reference audio + transcript. Engine-specific prompts are derived from these and cached under `prompts/`.
 
-**Routing** — automatic style selection based on text content. The router classifies text using a two-tier system (rule-based + centroid classifier) and returns a style decision with confidence score.
+**Routing** — automatic style selection based on text content. The router classifies text using a three-tier cascade (rule-based → semantic MLP → centroid classifier) and returns a style decision with confidence score.
 
 **Prompt-as-cache** — engine-specific speaker embeddings (`prompts/*.safetensors`) are derived artifacts. Switching an identity to a different engine rebuilds the cache from reference audio — no re-enrollment needed.
 

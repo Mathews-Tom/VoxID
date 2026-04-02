@@ -51,7 +51,11 @@ VoxID/
 │   │   ├── consent.py           # Consent recording, SHA-256, legal compliance
 │   │   ├── vad.py               # Multi-backend VAD (Silero/WebRTC/energy)
 │   │   ├── health.py            # Re-enrollment health check (age + drift)
-│   │   ├── multilingual.py      # Cross-lingual enrollment prompt generation
+│   │   ├── multilingual/        # Cross-lingual enrollment
+│   │   │   ├── __init__.py      # MultilingualScriptGenerator + exports
+│   │   │   ├── language_config.py # Per-language phoneme sets + prompts
+│   │   │   ├── phoneme_universal.py # Universal phoneme mapping
+│   │   │   └── script_generator.py  # Cross-lingual prompt selection
 │   │   └── prompts/             # Bundled JSON corpora (5 styles, 310 sentences)
 │   │
 │   ├── adapters/                # TTS engine adapters
@@ -188,7 +192,7 @@ class TTSEngineAdapter(Protocol):
     def capabilities(self) -> EngineCapabilities: ...
 
     def build_prompt(self, ref_audio: Path, ref_text: str, output_path: Path) -> Path: ...
-    def generate(self, text: str, prompt_path: Path, language: str = "en") -> tuple[np.ndarray, int]: ...
+    def generate(self, text: str, prompt_path: Path, language: str = "en", context_params: dict[str, float] | None = None) -> tuple[np.ndarray, int]: ...
     def generate_streaming(self, text: str, prompt_path: Path, language: str = "en") -> Iterator[np.ndarray]: ...
 ```
 
@@ -218,22 +222,13 @@ Engine-specific prompts (speaker embeddings) are stored under `prompts/{engine_s
 
 ### Style Router
 
-The router in `router/__init__.py` orchestrates two classifiers:
-
-1. **RuleBasedClassifier** — keyword/pattern matching, ~0ms
-2. **CentroidClassifier** — TF-IDF + cosine similarity against style centroids, ~1ms
-
-Routing flow: single style available → return immediately → check SQLite cache → rule-based → centroid → pick higher confidence → cache result.
-
-### Three-Tier Style Router
-
 The router in `router/__init__.py` orchestrates three classification tiers:
 
 1. **RuleBasedClassifier** (Tier 1, ~0ms) — keyword/pattern heuristics, returns if confidence ≥ 0.9
 2. **SemanticStyleClassifier** (Tier 1.5, ~10ms) — MLP with character/word n-grams, trained with `fit()`, supports contextual blending with neighboring segments
 3. **CentroidClassifier** (Tier 2, ~15ms) — TF-IDF + cosine similarity against style centroids, always returns a decision
 
-All decisions are cached in SQLite with configurable TTL.
+Routing flow: single style available → return immediately → check SQLite cache → rule-based → semantic MLP → centroid → cache result. All decisions are cached in SQLite with configurable TTL.
 
 ### Context-Aware Generation
 
