@@ -1,6 +1,6 @@
 # VoxID — Voice Identity Management Platform
 
-**Version:** 0.2.0
+**Version:** 0.3.1
 **Status:** Beta
 
 ---
@@ -11,7 +11,7 @@ VoxID is a voice identity management platform that sits between voice generation
 
 The platform addresses a structural gap in the current TTS ecosystem. Every capable open-source TTS engine (Fish Speech, CosyVoice2, IndexTTS-2, Qwen3-TTS) provides strong voice cloning from reference audio but offers no mechanism to manage the resulting voice artifacts as coherent identities over time. A user who wants their voice to sound different when reading technical documentation versus casual narration must manually maintain sample files, re-extract embeddings on every model update, and hard-code style selection into their pipeline logic. VoxID replaces this with a registry, a router, and an engine-agnostic dispatch layer.
 
-The central capability is agentic style routing: VoxID classifies input text and automatically selects the appropriate voice register from an identity's registered styles. A two-tier architecture handles this — a FastFit encoder classifier covering the high-confidence majority of inputs in under 1ms, with a learned fallback for ambiguous cases at approximately 15ms. This makes content-to-voice dispatch a solved problem for automated pipelines, batch generation, and real-time voice agents.
+The central capability is agentic style routing: VoxID classifies input text and automatically selects the appropriate voice register from an identity's registered styles. A three-tier cascade handles this — rule-based heuristics (~0ms) for high-confidence cases, a semantic MLP classifier (~10ms) for nuanced text, and a TF-IDF centroid fallback (~15ms) for remaining inputs. All decisions are cached in SQLite. This makes content-to-voice dispatch a solved problem for automated pipelines, batch generation, and real-time voice agents.
 
 VoxID is designed as an open-source, local-first library with REST API, CLI, and plugin surfaces. It does not compete with TTS engines — it is the management and orchestration layer above them, analogous to how a container runtime relates to the underlying OS. The platform ships with first-class support for Qwen3-TTS, Fish Speech, CosyVoice2, IndexTTS-2, and Chatterbox, with an adapter protocol for future engines.
 
@@ -69,7 +69,7 @@ The registry supports full CRUD for identities and styles, multi-sample fusion a
 
 The router is the intelligence layer. It classifies input text and selects the appropriate voice register from an identity's registered styles. The base taxonomy includes four registers — `conversational`, `technical`, `narration`, and `emphatic` — extensible with custom styles that participate in routing via their description field.
 
-Routing runs in two tiers. Tier 1 is a FastFit encoder classifier operating at approximately 1ms, covering over 95% of inputs with sufficient confidence. Tier 2 is a learned fallback at approximately 15ms for ambiguous cases. Both tiers are cacheable — style decisions are deterministic for identical inputs, stored in a local SQLite LRU cache.
+Routing runs in three tiers. Tier 1 is a rule-based classifier using keyword and pattern heuristics (~0ms), returning immediately when confidence exceeds 0.9. Tier 1.5 is a semantic MLP classifier with character and word n-gram features (~10ms), supporting contextual blending with neighboring segments. Tier 2 is a TF-IDF centroid classifier using cosine similarity (~15ms), which always returns a decision. All tiers are cacheable — style decisions are deterministic for identical inputs, stored in a local SQLite LRU cache.
 
 For long-form text, the router operates at the segment level using prosodic boundary detection rather than naive paragraph splits. A smoothing pass prevents jarring style thrashing across adjacent segments.
 
@@ -115,7 +115,8 @@ graph TB
         CLI[CLI - Click]
         VBP[VoiceBox Plugin]
         VA[VoxAgent - Real-time Bot]
-        subgraph Video Skills
+
+        subgraph VideoSkills[Video Skills]
             MN[Manim]
             RM[Remotion]
         end
@@ -123,12 +124,18 @@ graph TB
 
     SM[SceneManifest Contract]
 
-    subgraph VoxID Core
+    subgraph VC[VoxID Core]
+        CORE[Core Service Layer]
         IR[Identity Registry]
         SR[Style Router]
         GD[Generation Dispatcher]
         EP[Enrollment Pipeline]
-        VPS[Voice Prompt Store\nSafeTensors + TOML]
+        VPS[Voice Prompt Store<br/>SafeTensors + TOML]
+
+        CORE --> IR
+        CORE --> SR
+        CORE --> GD
+        CORE --> EP
 
         IR --> VPS
         SR --> VPS
@@ -136,7 +143,7 @@ graph TB
         EP --> VPS
     end
 
-    subgraph Engine Adapters
+    subgraph EA[Engine Adapters]
         Q3[Qwen3-TTS]
         FS[Fish Speech]
         CV[CosyVoice2]
@@ -145,14 +152,15 @@ graph TB
         FT[Future Engines...]
     end
 
-    PY --> VoxID Core
-    API --> VoxID Core
-    CLI --> VoxID Core
-    VBP --> VoxID Core
-    VA --> VoxID Core
+    PY --> CORE
+    API --> CORE
+    CLI --> CORE
+    VBP --> CORE
+    VA --> CORE
+
     MN --> SM
     RM --> SM
-    SM --> VoxID Core
+    SM --> CORE
 
     GD --> Q3
     GD --> FS
@@ -166,24 +174,29 @@ graph TB
 
 ```mermaid
 flowchart TD
-    T[Input Text] --> T1
+    T[Input Text] --> CHK{Check Cache}
+    CHK -- Hit --> H[Cached Decision]
+    CHK -- Miss --> T1
 
-    subgraph Tier1 [Tier 1 — FastFit Encoder ~1ms]
-        T1[FastFit Classifier] --> C1{Confidence ≥ 0.8?}
+    subgraph Tier1 [Tier 1 — RuleBasedClassifier ~0ms]
+        T1[Keyword/Pattern Heuristics] --> C1{Confidence ≥ 0.9?}
     end
 
     C1 -- Yes --> USE[Selected Style]
-    C1 -- No --> T2
+    C1 -- No --> T15
 
-    subgraph Tier2 [Tier 2 — Learned Fallback ~15ms]
-        T2[Encoder + Learned Head] --> C2{Confidence ≥ threshold?}
+    subgraph Tier15 [Tier 1.5 — SemanticStyleClassifier ~10ms]
+        T15[MLP + N-gram Features] --> C15{Confidence ≥ 0.8?}
     end
 
-    C2 -- Yes --> USE
-    C2 -- No --> DEF[Default Style]
+    C15 -- Yes --> USE
+    C15 -- No --> T2
+
+    subgraph Tier2 [Tier 2 — CentroidClassifier ~15ms]
+        T2[TF-IDF Cosine Similarity] --> USE
+    end
 
     USE --> CACHE[(SQLite LRU Cache)]
-    DEF --> CACHE
 ```
 
 ### Storage Layout
@@ -305,11 +318,11 @@ This positioning means VoxID benefits from improvements in the underlying engine
 
 **Prompt portability across engine versions.** Serialized speaker embeddings extracted by version N of a TTS engine may be incompatible with version N+1, requiring re-extraction from original reference audio. Mitigation: version tag embedded in every prompt file's metadata; migration tooling that detects version mismatch on load and triggers re-extraction from stored reference audio if available.
 
-**Router accuracy on ambiguous inputs.** Text that spans multiple registers (e.g., a technical explanation written in casual prose) produces low-confidence classifications in both tiers, risking incorrect style selection. Mitigation: FastFit trained on a labeled corpus that includes deliberately ambiguous examples; confidence-based fallback to `default_style` rather than a forced classification when both tiers are below threshold.
+**Router accuracy on ambiguous inputs.** Text that spans multiple registers (e.g., a technical explanation written in casual prose) produces low-confidence classifications across all three tiers, risking incorrect style selection. Mitigation: the three-tier cascade provides progressive refinement — rule-based heuristics catch clear cases, the semantic MLP handles nuanced text, and the centroid fallback always returns a decision. Confidence-based fallback to `default_style` activates when all tiers are below threshold.
 
 **Multi-sample fusion quality dependence on recording quality.** H/ASP outperforms naive averaging but embedding fidelity degrades on noisy or reverberant reference recordings. Mitigation: SEED denoising applied as a preprocessing step before embedding extraction; quality validation on reference audio at style creation time with explicit warnings for recordings below a SNR threshold.
 
-**Streaming latency budget with speculative routing.** Speculative routing adds architecture complexity and a restart path when Tier 2 overrides Tier 1. Mitigation: FastFit at 1ms makes Tier 1 correct in over 95% of cases; the speculative restart path is exercised rarely enough to not affect median latency. If override rate exceeds a configurable threshold, the system degrades gracefully to sequential routing.
+**Streaming latency budget with speculative routing.** Speculative routing adds architecture complexity and a restart path when a later tier overrides an earlier decision. Mitigation: the rule-based classifier at ~0ms makes Tier 1 correct in the majority of clear-cut cases; the speculative restart path is exercised rarely enough to not affect median latency. If override rate exceeds a configurable threshold, the system degrades gracefully to sequential routing.
 
 ### Security Risks
 
@@ -355,7 +368,7 @@ SafeTensors, not pickle. This is non-negotiable given the RCE risk of pickle des
 
 **4. How should the style router handle custom styles?**
 
-Custom styles participate in routing identically to base taxonomy styles. The router reads the `description` field of every registered style and uses it as a routing hint. For Tier 1 FastFit classification, custom styles require a small number of labeled examples to be included in the classifier's training set. For the Tier 2 learned fallback, custom style descriptions are embedded at router initialization and compared by cosine similarity — no retraining required for new styles.
+Custom styles participate in routing identically to base taxonomy styles. The router reads the `description` field of every registered style and uses it as a routing hint. For the rule-based tier, custom styles require scorer functions or fall through to higher tiers. For the semantic MLP tier, custom styles require labeled examples for training. For the centroid tier, custom style training data is used to compute TF-IDF centroids — all three tiers handle custom styles without architectural changes.
 
 **5. What is the right segmentation unit for long-form routing?**
 

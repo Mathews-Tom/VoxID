@@ -2,7 +2,7 @@
 
 ## System Design Document
 
-**Version:** 0.2.0
+**Version:** 0.3.1
 **Status:** Beta
 **Author:** Tom
 
@@ -186,17 +186,21 @@ All identity data is stored under `~/.voxid/`. The layout is:
 
 The style router is VoxID's core differentiator. It determines which voice register is appropriate for a given text input and returns a style decision with confidence score.
 
-### 4.1 Unified Fast Router
+### 4.1 Three-Tier Cascade Router
 
-The original two-tier architecture (regex + LLM) is replaced by a unified fast classifier:
+The router uses a three-tier cascade, each tier providing higher accuracy at increasing latency cost. The first tier to exceed its confidence threshold returns the decision.
 
-**Primary: FastFit encoder classifier** (IBM Research, NAACL 2024)
+**Tier 1: RuleBasedClassifier** (~0ms)
 
-FastFit uses batch contrastive learning with token-level similarity scoring. It requires 16–32 labeled examples per class and runs at approximately 1ms per inference. This replaces both the former Tier 1 regex layer and the former Tier 2 Qwen2.5-0.5B LLM fallback. With a confidence threshold of 0.8, FastFit covers over 95% of routing decisions.
+Deterministic keyword and pattern heuristics. Scores text against vocabulary sets (technical terms, casual markers, emphatic superlatives, transitional phrases) and syntactic patterns (units, camelCase, acronyms). Returns immediately when confidence exceeds 0.9.
 
-**Fallback: Hierarchical Emotion Predictor** (arxiv:2405.09171)
+**Tier 1.5: SemanticStyleClassifier** (~10ms)
 
-A BERT-based model producing continuous emotion embeddings, mapped to the nearest style centroid. Invoked only when FastFit confidence falls below 0.8. Latency: 15–30ms.
+MLP with hashed character n-grams (2–4) and word n-grams (1–2), fed through a 2-layer network (input → ReLU(128) → softmax(n_classes)) with Platt scaling for calibrated confidence. Supports contextual blending: 80% target segment weight + 20% weighted average of neighboring segments (decay factor 0.5). Trained with `classifier.fit(texts, labels)` and persisted via SafeTensors.
+
+**Tier 2: CentroidClassifier** (~15ms)
+
+TF-IDF bag-of-words cosine similarity against pre-computed style centroids. Always returns a decision — acts as the final fallback.
 
 **Cache:** SQLite LRU keyed on text hash. Decisions survive process restarts.
 
@@ -204,14 +208,17 @@ A BERT-based model producing continuous emotion embeddings, mapped to the neares
 
 ```mermaid
 flowchart TD
-    A[Input Text] --> B[FastFit Classifier\n~1ms]
-    B --> C{Confidence ≥ 0.8?}
-    C -- Yes --> D[Use Classified Style]
-    C -- No --> E[Hierarchical Emotion Predictor\n~15–30ms]
-    E --> F[Style + Confidence Score]
-    F --> G{Check Cache}
-    G -- Hit --> H[Cached Decision]
-    G -- Miss --> I[Write Cache → Use Style]
+    A[Input Text] --> CHK{Check Cache}
+    CHK -- Hit --> H[Cached Decision]
+    CHK -- Miss --> B[RuleBasedClassifier\n~0ms]
+    B --> C{Confidence ≥ 0.9?}
+    C -- Yes --> USE[Use Classified Style]
+    C -- No --> D[SemanticStyleClassifier\n~10ms]
+    D --> E{Confidence ≥ 0.8?}
+    E -- Yes --> USE
+    E -- No --> F[CentroidClassifier\n~15ms]
+    F --> USE
+    USE --> CACHE[(Write to SQLite Cache)]
 ```
 
 ### 4.2 Segment Router (Batch Mode)
@@ -241,7 +248,7 @@ This operates in embedding space rather than on discrete style labels. Segment-a
 flowchart TD
     A[Long-form Text] --> B[Prosodic Boundary Detector]
     B --> C[Segments]
-    C --> D[Per-Segment FastFit Classification]
+    C --> D[Per-Segment Three-Tier Classification]
     D --> E[Style Decisions]
     E --> F[Smoothing Pass\nConvex Interpolation α=0.7]
     F --> G[Smoothed Style Decisions]
@@ -255,8 +262,8 @@ For real-time use cases, VoxID implements speculative routing. Research (PredGen
 The algorithm:
 
 1. Begin generation immediately using `default_style`
-2. FastFit classification completes in < 1ms — always before the first audio chunk is emitted
-3. If FastFit disagrees with `default_style`, swap the voice prompt before the first chunk is released
+2. Rule-based classification completes in < 1ms — always before the first audio chunk is emitted
+3. If the classifier disagrees with `default_style`, swap the voice prompt before the first chunk is released
 4. For streaming: buffer the first chunk (30–100ms depending on engine) while classification runs
 
 In practice, the speculative window is effectively zero for non-streaming cases. For streaming, the first-chunk buffer absorbs the classification latency with no perceptible delay.
@@ -681,24 +688,25 @@ The CLI is built on Click and available as the `voxid` command.
 
 ## 12. Technical Decisions
 
-| Decision             | Choice                          | Rationale                                                                             |
-| -------------------- | ------------------------------- | ------------------------------------------------------------------------------------- |
-| Storage format       | TOML + SafeTensors + WAV        | Human-readable config, secure binary embeddings (no RCE), lossless audio              |
-| Router primary       | FastFit encoder classifier      | ~1ms inference, no model load at request time, covers > 95% of routing decisions      |
-| Router fallback      | Hierarchical Emotion Predictor  | ~15ms BERT-based, continuous emotion embeddings, invoked only on low-confidence cases |
-| Router cache         | SQLite LRU                      | Single-file, zero-config, survives restarts, no server dependency                     |
-| Prompt serialization | SafeTensors                     | No code execution path, zero-copy reads, 400-line auditable Rust implementation       |
-| Audio stitching      | pydub + Pedalboard              | pydub for ergonomic editing, Pedalboard (C++ core) for batch performance              |
-| Text segmentation    | LightGBM prosodic boundary      | < 1ms, F1 = 87%, linguistically motivated rather than paragraph-split heuristics      |
-| Smoothing            | StyleTTS 2 convex interpolation | Operates in embedding space, α = 0.7, prevents discrete label-switch artifacts        |
-| Speaker similarity   | WavLM-ECAPA (VoxSim fine-tuned) | LCC 0.835 vs. human judgment; replaces resemblyzer                                    |
-| Watermarking         | AudioSeal (Meta, MIT)           | 1000× faster than WavMark, sample-level granularity, MIT license                      |
-| Fusion strategy      | H/ASP segment-averaging         | 15% better than single-clip x-vector on subjective similarity                         |
-| Word timing          | NeMo Forced Aligner             | CTC-based, highest accuracy on technical vocabulary                                   |
-| Config format        | TOML                            | Human-editable, stdlib support in Python 3.11+                                        |
-| API framework        | FastAPI                         | Async-native, auto OpenAPI, matches VoiceBox                                          |
-| CLI framework        | Click                           | Minimal, composable, no global state                                                  |
-| Video contract       | SceneManifest (Pydantic)        | Single schema for all video integrations; validates at boundary                       |
+| Decision             | Choice                          | Rationale                                                                         |
+| -------------------- | ------------------------------- | --------------------------------------------------------------------------------- |
+| Storage format       | TOML + SafeTensors + WAV        | Human-readable config, secure binary embeddings (no RCE), lossless audio          |
+| Router Tier 1        | RuleBasedClassifier             | ~0ms deterministic heuristics, covers high-confidence routing decisions           |
+| Router Tier 1.5      | SemanticStyleClassifier (MLP)   | ~10ms n-gram MLP with Platt scaling, contextual blending with neighbors           |
+| Router Tier 2        | CentroidClassifier (TF-IDF)     | ~15ms bag-of-words cosine similarity, always returns a decision as final fallback |
+| Router cache         | SQLite LRU                      | Single-file, zero-config, survives restarts, no server dependency                 |
+| Prompt serialization | SafeTensors                     | No code execution path, zero-copy reads, 400-line auditable Rust implementation   |
+| Audio stitching      | pydub + Pedalboard              | pydub for ergonomic editing, Pedalboard (C++ core) for batch performance          |
+| Text segmentation    | LightGBM prosodic boundary      | < 1ms, F1 = 87%, linguistically motivated rather than paragraph-split heuristics  |
+| Smoothing            | StyleTTS 2 convex interpolation | Operates in embedding space, α = 0.7, prevents discrete label-switch artifacts    |
+| Speaker similarity   | WavLM-ECAPA (VoxSim fine-tuned) | LCC 0.835 vs. human judgment; replaces resemblyzer                                |
+| Watermarking         | AudioSeal (Meta, MIT)           | 1000× faster than WavMark, sample-level granularity, MIT license                  |
+| Fusion strategy      | H/ASP segment-averaging         | 15% better than single-clip x-vector on subjective similarity                     |
+| Word timing          | NeMo Forced Aligner             | CTC-based, highest accuracy on technical vocabulary                               |
+| Config format        | TOML                            | Human-editable, stdlib support in Python 3.11+                                    |
+| API framework        | FastAPI                         | Async-native, auto OpenAPI, matches VoiceBox                                      |
+| CLI framework        | Click                           | Minimal, composable, no global state                                              |
+| Video contract       | SceneManifest (Pydantic)        | Single schema for all video integrations; validates at boundary                   |
 
 ---
 
@@ -727,12 +735,12 @@ graph TD
         PD[pydantic]
         SF[soundfile]
         PB[pydub]
-        PBD[pedalboard]
         ST[safetensors]
         CL[click]
         FA[fastapi]
-        FF[fastfit]
-        AS[audioseal]
+        NP[numpy]
+        CM[cmudict]
+        PL[pyloudnorm]
     end
 
     PS --> VOXID
@@ -749,21 +757,21 @@ graph TD
     VOXID --> PD
     VOXID --> SF
     VOXID --> PB
-    VOXID --> PBD
     VOXID --> ST
     VOXID --> CL
     VOXID --> FA
-    VOXID --> FF
-    VOXID --> AS
+    VOXID --> NP
+    VOXID --> CM
+    VOXID --> PL
 ```
 
-Engine adapter packages are optional dependencies installed per engine: `pip install voxid[fish-speech]`, `pip install voxid[cosyvoice2]`, etc. The core package ships with the Qwen3-TTS adapter only.
+Engine adapter packages are optional dependencies installed per engine: `uv add voxid[qwen3-tts]`, `uv add voxid[qwen3-tts-mlx]`, etc. The core package ships with the stub adapter only.
 
 ---
 
 ## 14. Three-Tier Semantic Routing
 
-The original two-tier router (FastFit + hierarchical emotion predictor) has been refined into a three-tier cascade:
+The router uses a three-tier cascade:
 
 | Tier | Classifier              | Latency | Confidence Threshold | Description                                              |
 | ---- | ----------------------- | ------- | -------------------- | -------------------------------------------------------- |

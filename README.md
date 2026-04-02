@@ -1,36 +1,53 @@
 # VoxID
 
+**Persistent voice identities across any TTS engine.**
+
 [![Release](https://img.shields.io/github/v/release/Mathews-Tom/VoxID?label=release&color=blue)](https://github.com/Mathews-Tom/VoxID/releases)
 [![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](https://pypi.org/project/voxid/)
 [![License](https://img.shields.io/github/license/Mathews-Tom/VoxID?color=orange)](LICENSE)
-[![Issues](https://img.shields.io/github/issues/Mathews-Tom/VoxID)](https://github.com/Mathews-Tom/VoxID/issues)
-[![PRs](https://img.shields.io/github/issues-pr/Mathews-Tom/VoxID)](https://github.com/Mathews-Tom/VoxID/pulls)
 
 Voice Identity Management Platform — a local-first Python library, CLI, and REST API for managing persistent voice identities across multiple TTS engines.
 
-VoxID sits between your application and TTS engines. It introduces **voice identities** — named entities that own multiple voice styles, each backed by precomputed speaker embeddings, versioned on disk, and automatically selected based on text content.
-
 <video src="https://github.com/user-attachments/assets/ab4e702f-fcfe-4c4e-b681-e96dac0c990c" width="100%" autoplay loop muted playsinline></video>
+
+[Watch demo →](https://github.com/user-attachments/assets/ab4e702f-fcfe-4c4e-b681-e96dac0c990c)
+
+## Why VoxID?
+
+Every TTS engine has its own prompt format, speaker embedding scheme, and API surface. Switching engines means re-recording reference audio, rebuilding prompts, and rewriting integration code. Voice consistency breaks across sessions, engines, and languages — there is no standard for voice identity persistence.
+
+VoxID sits between your application and TTS engines. It introduces **voice identities** — named entities that own multiple voice styles, each backed by precomputed speaker embeddings, versioned on disk, and automatically selected based on text content. Enroll once, generate anywhere.
 
 ## Features
 
+### Core
+
 - **Multi-style voice identities** — named entities with multiple registers (conversational, technical, narration, emphatic), persisted as TOML + SafeTensors
-- **Three-tier style routing** — rule-based (~0ms) → semantic MLP classifier (~10ms) → centroid fallback (~15ms) with SQLite LRU cache
 - **Engine-agnostic generation** — single API across Qwen3-TTS, Fish Speech, CosyVoice2, IndexTTS-2, and Chatterbox
+- **Three-tier style routing** — rule-based (~0ms) → semantic MLP classifier (~10ms) → centroid fallback (~15ms) with SQLite LRU cache
 - **Segment-level routing** — long-form text is split at prosodic boundaries, each segment routed independently with smoothing to prevent style thrashing
 - **Context-aware generation** — rolling-window context tracking for prosodic continuity across long documents with SSML conditioning and adaptive pause durations
-- **Unified tokenizer** — engine-agnostic speaker representation combining acoustic (WavTokenizer) and semantic (HuBERT) tokens with linear projection to engine-specific embeddings
-- **Synthesis detection** — anti-spoofing ensemble (AASIST + RawNet2 + LCNN) with diffusion artifact analysis for deepfake detection
 - **Cross-lingual identity** — voice generation across 10+ languages while maintaining speaker identity consistency
-- **Multi-GPU serving** — async GPU dispatcher with round-robin and least-loaded strategies, per-worker queue management, and vLLM plugin integration
-- **Portable `.voxid` archives** — HMAC-signed archives with consent records for identity transfer and backup
-- **AudioSeal watermarking** — provenance tracking embedded in generated audio (optional, requires `audioseal`)
+- **Prompt-as-cache architecture** — engine-specific prompts are a derived cache; switching engines rebuilds the cache, not the enrollment
+
+### Enrollment & Identity
+
 - **Scripted voice enrollment** — guided recording with phonetically balanced prompts, real-time quality feedback, adaptive phoneme coverage tracking, and multi-sample fusion
 - **Web enrollment UI** — browser-based enrollment with real-time waveform visualization, quality meters, and session persistence
+- **Unified tokenizer** — engine-agnostic speaker representation combining acoustic (WavTokenizer) and semantic (HuBERT) tokens with linear projection to engine-specific embeddings
 - **Voice drift detection** — cosine similarity monitoring against enrollment baseline with re-enrollment recommendations
 - **Re-enrollment health checks** — age-based and drift-based triggers for enrollment refresh
+
+### Security & Compliance
+
+- **Synthesis detection** — anti-spoofing ensemble (AASIST + RawNet2 + LCNN) with diffusion artifact analysis for deepfake detection
+- **AudioSeal watermarking** — provenance tracking embedded in generated audio (optional, requires `audioseal`)
+- **Portable `.voxid` archives** — HMAC-signed archives with consent records for identity transfer and backup
+
+### Serving & Integration
+
+- **Multi-GPU serving** — async GPU dispatcher with round-robin and least-loaded strategies, per-worker queue management, and vLLM plugin integration
 - **Video pipeline integration** — SceneManifest contract for Manim and Remotion with word-level timing
-- **Prompt-as-cache architecture** — engine-specific prompts are a derived cache; switching engines rebuilds the cache, not the enrollment
 
 ## Supported Engines
 
@@ -91,12 +108,14 @@ vox.add_style(
 
 # Or enroll with guided prompts (creates session + generates prompts)
 session = vox.enroll("alice", ["conversational", "technical"])
+# EnrollmentSession(session_id='a1b2c3d4', status=<IN_PROGRESS>, ...)
 
 # Generate — style is auto-routed from text content
 audio_path, sr = vox.generate(
     text="Let me walk you through how this works.",
     identity_id="alice",
 )
+# (PosixPath('~/.voxid/output/alice_conversational_8f3a...wav'), 24000)
 
 # Dry-run routing
 decision = vox.route(text="The p99 latency increased after the migration.", identity_id="alice")
@@ -191,11 +210,20 @@ docker build -t voxid .
 docker run -p 8765:8765 -v ~/.voxid:/data/voxid voxid
 ```
 
+## Documentation
+
+| Document                               | Description                                                           |
+| -------------------------------------- | --------------------------------------------------------------------- |
+| [Usage Guide](docs/usage.md)           | CLI, Python library, REST API, segments, manifests, video integration |
+| [Developer Guide](docs/development.md) | Setup, project structure, testing, writing adapters, contributing     |
+| [System Design](docs/system-design.md) | Architecture, data model, router algorithms, security                 |
+| [Overview](docs/overview.md)           | Product overview, market analysis, technology landscape               |
+
 ## Architecture
 
 ```text
-┌──────────────────────────────────────────────────────────────────┐
-│                        Consumer Layer                            │
+┌─────────────────────────────────────────────────────────────────┐
+│                        Consumer Layer                           │
 │   Python Library  │  REST API  │  CLI  │  Web UI  │  VoiceBox   │
 └────────┬──────────┴─────┬──────┴───┬───┴─────┬────┴──────┬──────┘
          │                │          │         │           │
@@ -205,7 +233,7 @@ docker run -p 8765:8765 -v ~/.voxid:/data/voxid voxid
 │  │  Identity    │ │   Style     │ │   Generation Dispatcher  │  │
 │  │  Registry    │ │   Router    │ │   + Context Conditioner  │  │
 │  └──────┬───────┘ └──────┬──────┘ └────────┬─────────────────┘  │
-│         │           3-tier│                 │                    │
+│         │          3-tier│                 │                    │
 │  ┌──────▼──────────┐  ┌──▼──────────┐  ┌───▼─────────────────┐  │
 │  │   Enrollment    │  │  Unified    │  │  Voice Prompt Store │  │
 │  │   Pipeline      │  │  Tokenizer  │  │  (TOML+SafeTensors) │  │
@@ -217,11 +245,11 @@ docker run -p 8765:8765 -v ~/.voxid:/data/voxid voxid
 └──────────────────────────┬──────────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────────┐
-│                  GPU Dispatcher / Engine Adapters                │
+│                  GPU Dispatcher / Engine Adapters               │
 │  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Multi-GPU Serving (vLLM): round-robin / least-loaded   │   │
+│  │  Multi-GPU Serving (vLLM): round-robin / least-loaded    │   │
 │  └────┬────────────┬────────────┬────────────┬──────────────┘   │
-│  Qwen3-TTS │ Fish Speech │ CosyVoice2 │ IndexTTS-2 │ Chatterbox│
+│  Qwen3-TTS │ Fish Speech │ CosyVoice2 │ IndexTTS-2 │ Chatterbox │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -276,14 +304,9 @@ max_embedding_versions = 3
 | `VOXID_RATE_WINDOW` | Rate limit window in seconds                          | `60`    |
 | `VOXID_STORE_PATH`  | Override store path (used by Docker)                  | —       |
 
-## Documentation
+## Contributing
 
-| Document                               | Description                                                           |
-| -------------------------------------- | --------------------------------------------------------------------- |
-| [Usage Guide](docs/usage.md)           | CLI, Python library, REST API, segments, manifests, video integration |
-| [Developer Guide](docs/development.md) | Setup, project structure, testing, writing adapters, contributing     |
-| [System Design](docs/system-design.md) | Architecture, data model, router algorithms, security                 |
-| [Overview](docs/overview.md)           | Product overview, market analysis, technology landscape               |
+Contributions are welcome. See the [Developer Guide](docs/development.md) for setup, project structure, testing, and adapter authoring.
 
 ## License
 
