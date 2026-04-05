@@ -1,4 +1,7 @@
-"""VoxID Explainer Video — 90-second animated overview."""
+"""VoxID Explainer Video — 90-second animated overview.
+
+Voice Persona Platform — persistent voice personas across any TTS engine.
+"""
 
 from manim import *
 import numpy as np
@@ -31,7 +34,7 @@ class VoxIDExplainer(Scene):
         fade_all(self)
         self.scene_enrollment()
         fade_all(self)
-        self.scene_identity()
+        self.scene_persona()
         fade_all(self)
         self.scene_generation()
         fade_all(self)
@@ -41,28 +44,49 @@ class VoxIDExplainer(Scene):
     # Scene 1: Hook (0–8s)
     # ══════════════════════════════════════════
     def scene_hook(self):
-        # Teal pulse ripple from center
-        circles = VGroup()
-        for i in range(5):
-            c = Circle(radius=0.3 + i * 0.8, color=TEAL, stroke_width=3 - i * 0.4)
-            c.set_fill(opacity=0)
-            circles.add(c)
+        # Voice-wave pulse ripple — concentric sound arcs from center
+        arcs = VGroup()
+        for i in range(6):
+            arc = Arc(
+                radius=0.5 + i * 0.7,
+                start_angle=PI / 4,
+                angle=PI / 2,
+                color=TEAL,
+                stroke_width=3 - i * 0.35,
+            )
+            arcs.add(arc)
+        # Mirror arcs on the left side
+        arcs_left = VGroup()
+        for i in range(6):
+            arc = Arc(
+                radius=0.5 + i * 0.7,
+                start_angle=PI * 5 / 4,
+                angle=PI / 2,
+                color=TEAL,
+                stroke_width=3 - i * 0.35,
+            )
+            arcs_left.add(arc)
 
         self.play(
             LaggedStart(
-                *[Create(c) for c in circles],
-                lag_ratio=0.15,
+                *[Create(a) for a in arcs],
+                lag_ratio=0.12,
+            ),
+            LaggedStart(
+                *[Create(a) for a in arcs_left],
+                lag_ratio=0.12,
             ),
             run_time=1.5,
         )
         self.play(
-            *[c.animate.set_stroke(opacity=0.1) for c in circles],
+            *[a.animate.set_stroke(opacity=0.15) for a in arcs],
+            *[a.animate.set_stroke(opacity=0.15) for a in arcs_left],
             run_time=0.8,
         )
 
-        # Text fade in
+        # Tagline
         tagline = Text(
-            "Your voice is as unique as your fingerprint",
+            "One voice. Many styles. Every engine.",
             font_size=32, color=TXT,
         )
         tagline.move_to(UP * 0.5)
@@ -86,7 +110,7 @@ class VoxIDExplainer(Scene):
     # Scene 2: The Problem (8–25s)
     # ══════════════════════════════════════════
     def scene_problem(self):
-        # Left: person with varied speech bubbles
+        # Left: person with varied speech styles (colored bubbles)
         person = Circle(radius=0.4, color=TEAL, fill_opacity=0.3).shift(LEFT * 3.5 + UP * 0.5)
         person_label = Text("You", font_size=20, color=TEAL).next_to(person, DOWN, buff=0.2)
 
@@ -104,7 +128,7 @@ class VoxIDExplainer(Scene):
             ).move_to(pos)
             bubbles.add(b)
 
-        # Right: robot with identical bars
+        # Right: robot with identical bars (flat, single-style output)
         robot = Square(side_length=0.7, color=MUTED, fill_opacity=0.3).shift(RIGHT * 3.5 + UP * 0.5)
         robot_label = Text("Clone", font_size=20, color=MUTED).next_to(robot, DOWN, buff=0.2)
 
@@ -139,7 +163,7 @@ class VoxIDExplainer(Scene):
         self.play(FadeIn(caption, shift=UP * 0.2), run_time=0.8)
         self.wait(2)
 
-        # Collapse everything into a dot
+        # Collapse into a dot
         dot = Dot(ORIGIN, radius=0.08, color=CORAL)
         all_elements = VGroup(person, person_label, bubbles, robot, robot_label, bars, divider, caption)
         self.play(
@@ -153,7 +177,6 @@ class VoxIDExplainer(Scene):
     # Scene 3: Enrollment (25–45s)
     # ══════════════════════════════════════════
     def scene_enrollment(self):
-        # Title
         title = Text("Guided Enrollment", font_size=36, weight=BOLD, color=TXT)
         title.to_edge(UP, buff=0.4)
         self.play(FadeIn(title, shift=DOWN * 0.2), run_time=0.5)
@@ -177,9 +200,9 @@ class VoxIDExplainer(Scene):
             x_offset += w.width + 0.05
             word_group.add(w)
 
-        # Pause bars (blue)
+        # Pause bars
         pause1 = Rectangle(width=0.06, height=0.4, color=BLUE_ACC, fill_opacity=0.7)
-        pause1.move_to(word_group[1].get_right() + RIGHT * 0.1 + UP * 0.0)
+        pause1.move_to(word_group[1].get_right() + RIGHT * 0.1)
         pause2 = Rectangle(width=0.12, height=0.4, color=BLUE_ACC, fill_opacity=0.7)
         pause2.move_to(word_group[7].get_right() + RIGHT * 0.15)
 
@@ -190,9 +213,9 @@ class VoxIDExplainer(Scene):
         )
         self.play(FadeIn(pause1), FadeIn(pause2), run_time=0.3)
 
-        # Highlight emphasis words
+        # Emphasis underlines
         emphasis_boxes = VGroup()
-        for idx in [2, 5]:  # "actually", "completely"
+        for idx in [2, 5]:
             underline = Line(
                 word_group[idx].get_corner(DL),
                 word_group[idx].get_corner(DR),
@@ -202,7 +225,7 @@ class VoxIDExplainer(Scene):
         self.play(*[Create(u) for u in emphasis_boxes], run_time=0.5)
         self.wait(0.5)
 
-        # Waveform animation (green bars)
+        # Waveform bars
         wave_bars = VGroup()
         for i in range(40):
             h = 0.1 + 0.5 * abs(np.sin(i * 0.3))
@@ -232,7 +255,6 @@ class VoxIDExplainer(Scene):
 
         self.play(FadeIn(meters_group), run_time=0.3)
 
-        # Animate meter fills
         fill_anims = []
         for i in range(3):
             fill_bar = meters_group[i * 3 + 2]
@@ -241,7 +263,7 @@ class VoxIDExplainer(Scene):
 
         self.play(*fill_anims, run_time=1.5)
 
-        # Phoneme coverage bar
+        # Phoneme coverage
         cov_label = Text("Phoneme Coverage", font_size=18, color=MUTED).shift(RIGHT * 2.5 + DOWN * 2.0)
         cov_bg = Rectangle(width=3.5, height=0.25, color=SURFACE, fill_opacity=0.5)
         cov_bg.next_to(cov_label, DOWN, buff=0.15)
@@ -257,7 +279,6 @@ class VoxIDExplainer(Scene):
             run_time=2,
         )
 
-        # Bottom caption
         enroll_caption = Text(
             "Guided enrollment captures every sound in your voice",
             font_size=24, color=TXT,
@@ -266,14 +287,14 @@ class VoxIDExplainer(Scene):
         self.wait(2)
 
     # ══════════════════════════════════════════
-    # Scene 4: Identity Management (45–60s)
+    # Scene 4: Persona Dashboard (45–60s)
     # ══════════════════════════════════════════
-    def scene_identity(self):
-        title = Text("Identity Dashboard", font_size=36, weight=BOLD, color=TXT)
+    def scene_persona(self):
+        title = Text("Persona Dashboard", font_size=36, weight=BOLD, color=TXT)
         title.to_edge(UP, buff=0.4)
         self.play(FadeIn(title, shift=DOWN * 0.2), run_time=0.5)
 
-        # 3 identity cards
+        # 3 persona cards
         cards = VGroup()
         names = ["Alice", "Tom", "Sarah"]
         style_counts = [3, 2, 4]
@@ -304,7 +325,7 @@ class VoxIDExplainer(Scene):
         )
         self.wait(1)
 
-        # Zoom into middle card (Tom)
+        # Zoom into Tom
         self.play(
             cards[0].animate.set_opacity(0.2).scale(0.8),
             cards[2].animate.set_opacity(0.2).scale(0.8),
@@ -312,7 +333,7 @@ class VoxIDExplainer(Scene):
             run_time=1,
         )
 
-        # Detail panel for Tom
+        # Style detail panel
         detail = VGroup()
         styles_data = [
             ("conversational", "qwen3-tts", TEAL),
@@ -341,7 +362,7 @@ class VoxIDExplainer(Scene):
         )
 
         caption = Text(
-            "Manage, review, and play back every enrolled voice",
+            "Persistent personas — styles, engines, and consent in one place",
             font_size=24, color=TXT,
         ).to_edge(DOWN, buff=0.3)
         self.play(FadeIn(caption, shift=UP * 0.2), run_time=0.5)
@@ -355,7 +376,7 @@ class VoxIDExplainer(Scene):
         title.to_edge(UP, buff=0.4)
         self.play(FadeIn(title, shift=DOWN * 0.2), run_time=0.5)
 
-        # Text input field
+        # Text input
         input_bg = RoundedRectangle(
             width=10, height=1, corner_radius=0.1,
             color=SURFACE, fill_opacity=0.8,
@@ -398,11 +419,10 @@ class VoxIDExplainer(Scene):
             run_time=1,
         )
 
-        # Highlight selected
         self.play(Indicate(chips[0], color=CORAL, scale_factor=1.1), run_time=0.6)
         self.wait(0.5)
 
-        # Generated waveform materializing
+        # Generated waveform
         gen_wave = VGroup()
         for i in range(50):
             h = 0.05 + 0.4 * abs(np.sin(i * 0.25 + 0.5))
@@ -427,7 +447,7 @@ class VoxIDExplainer(Scene):
     # Scene 6: Call to Action (75–90s)
     # ══════════════════════════════════════════
     def scene_cta(self):
-        # Waveform bars on left (teal)
+        # Left: waveform bars (teal) representing voice output
         left_bars = VGroup()
         for i in range(12):
             h = 0.3 + 1.2 * abs(np.sin(i * 0.4))
@@ -436,17 +456,29 @@ class VoxIDExplainer(Scene):
             ).shift(LEFT * 5 + RIGHT * i * 0.35)
             left_bars.add(bar)
 
-        # Fingerprint rings on right (coral)
-        rings = VGroup()
+        # Right: persona style arcs — layered voice registers (not fingerprint)
+        style_arcs = VGroup()
+        arc_colors = [TEAL, CORAL, AMBER, EMERALD]
+        arc_labels = ["conv", "tech", "narr", "emph"]
         center = RIGHT * 3
-        for i in range(6):
-            r = 0.4 + i * 0.35
-            ring = Circle(radius=r, color=CORAL, stroke_width=2.5 - i * 0.3, fill_opacity=0)
-            ring.set_stroke(opacity=0.8 - i * 0.1)
-            ring.move_to(center)
-            rings.add(ring)
+        for i, (color, label) in enumerate(zip(arc_colors, arc_labels)):
+            r = 0.6 + i * 0.45
+            arc = Arc(
+                radius=r,
+                start_angle=-PI / 3,
+                angle=2 * PI / 3,
+                color=color,
+                stroke_width=4 - i * 0.5,
+            )
+            arc.move_to(center)
+            style_arcs.add(arc)
 
-        # Transition elements in the middle
+        # Persona dot at center of arcs
+        persona_dot = Dot(center, radius=0.15, color=TXT)
+        persona_label = Text("persona", font_size=14, color=MUTED)
+        persona_label.next_to(persona_dot, DOWN, buff=0.3)
+
+        # Transition elements in the middle — gradient bars
         mid_elements = VGroup()
         for i in range(5):
             h = 0.2 + 0.8 * abs(np.sin(i * 0.5))
@@ -462,7 +494,9 @@ class VoxIDExplainer(Scene):
             run_time=1.5,
         )
         self.play(
-            LaggedStart(*[Create(r) for r in rings], lag_ratio=0.1),
+            LaggedStart(*[Create(a) for a in style_arcs], lag_ratio=0.1),
+            FadeIn(persona_dot),
+            FadeIn(persona_label),
             FadeIn(mid_elements),
             run_time=1.5,
         )
@@ -476,17 +510,26 @@ class VoxIDExplainer(Scene):
 
         self.play(
             left_bars.animate.set_opacity(0.2),
-            rings.animate.set_opacity(0.2),
+            style_arcs.animate.set_opacity(0.2),
+            persona_dot.animate.set_opacity(0.15),
+            persona_label.animate.set_opacity(0.15),
             mid_elements.animate.set_opacity(0.15),
             FadeIn(logo, scale=1.3),
             run_time=1.2,
         )
 
-        # pip install
+        # Subtitle and install command
+        subtitle = Text(
+            "Voice Persona Platform", font_size=28, color=MUTED,
+        ).shift(DOWN * 1)
         install = Text(
-            "uv tool install voxid", font_size=24, color=MUTED,
-        ).shift(DOWN * 1.5)
-        self.play(FadeIn(install, shift=UP * 0.2), run_time=0.6)
+            "uv add voxid", font_size=24, color=MUTED,
+        ).shift(DOWN * 1.8)
+        self.play(
+            FadeIn(subtitle, shift=UP * 0.2),
+            run_time=0.5,
+        )
+        self.play(FadeIn(install, shift=UP * 0.2), run_time=0.5)
         self.wait(2)
 
         # Fade to black
