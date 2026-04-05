@@ -42,7 +42,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     app = FastAPI(
         title="VoxID",
-        description="Voice Identity Management Platform API",
+        description="Voice Persona Platform API",
         version="0.2.0",
         lifespan=_lifespan,
     )

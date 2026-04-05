@@ -1,4 +1,4 @@
-# VoxID — Voice Identity Management Platform
+# VoxID — Voice Persona Platform
 
 ## System Design Document
 
@@ -10,9 +10,9 @@
 
 ## 1. Introduction
 
-VoxID is a Voice Identity Management Platform that sits between identity management and TTS engines. It introduces the concept of a **voice identity**: a persistent, multi-style representation of a person or brand's voice that can be managed, versioned, and intelligently dispatched.
+VoxID is a Voice Persona Platform that sits between persona management and TTS engines. It introduces the concept of a **voice persona**: a persistent, multi-style representation of a person or brand's voice that can be managed, versioned, and intelligently dispatched.
 
-Voice cloning tools treat voice samples as atomic inputs — you pick one sample, generate one output. There is no abstraction for persistent identity, no style-aware routing, and no agentic selection. Given a block of text, no existing tool automatically determines which voice register is appropriate and selects accordingly. VoxID fills this gap as a thin, opinionated layer between voice identity management and TTS engines.
+Voice cloning tools treat voice samples as atomic inputs — you pick one sample, generate one output. There is no abstraction for persistent identity, no style-aware routing, and no agentic selection. Given a block of text, no existing tool automatically determines which voice register is appropriate and selects accordingly. VoxID fills this gap as a thin, opinionated layer between voice persona management and TTS engines.
 
 This document covers the system architecture, core data model, style routing algorithms, engine adapter protocol, streaming design, video skill integration, and security architecture.
 

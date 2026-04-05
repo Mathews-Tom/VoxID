@@ -1,4 +1,4 @@
-# VoxID — Voice Identity Management Platform
+# VoxID — Voice Persona Platform
 
 **Version:** 0.3.1
 **Status:** Beta
@@ -7,21 +7,21 @@
 
 ## Executive Summary
 
-VoxID is a voice identity management platform that sits between voice generation clients and TTS engines. Where existing TTS systems treat reference audio as an atomic input — one sample in, one voice out — VoxID introduces a persistent identity abstraction: a named entity that owns multiple voice registers, each mapped to a precomputed embedding, versioned on disk, and selectable by content rather than manual configuration.
+VoxID is a voice persona platform that sits between voice generation clients and TTS engines. Where existing TTS systems treat reference audio as an atomic input — one sample in, one voice out — VoxID introduces a persistent persona abstraction: a named entity that owns multiple voice registers, each mapped to a precomputed embedding, versioned on disk, and selectable by content rather than manual configuration.
 
-The platform addresses a structural gap in the current TTS ecosystem. Every capable open-source TTS engine (Fish Speech, CosyVoice2, IndexTTS-2, Qwen3-TTS) provides strong voice cloning from reference audio but offers no mechanism to manage the resulting voice artifacts as coherent identities over time. A user who wants their voice to sound different when reading technical documentation versus casual narration must manually maintain sample files, re-extract embeddings on every model update, and hard-code style selection into their pipeline logic. VoxID replaces this with a registry, a router, and an engine-agnostic dispatch layer.
+The platform addresses a structural gap in the current TTS ecosystem. Every capable open-source TTS engine (Fish Speech, CosyVoice2, IndexTTS-2, Qwen3-TTS) provides strong voice cloning from reference audio but offers no mechanism to manage the resulting voice artifacts as coherent personas over time. A user who wants their voice to sound different when reading technical documentation versus casual narration must manually maintain sample files, re-extract embeddings on every model update, and hard-code style selection into their pipeline logic. VoxID replaces this with a registry, a router, and an engine-agnostic dispatch layer.
 
 The central capability is agentic style routing: VoxID classifies input text and automatically selects the appropriate voice register from an identity's registered styles. A three-tier cascade handles this — rule-based heuristics (~0ms) for high-confidence cases, a semantic MLP classifier (~10ms) for nuanced text, and a TF-IDF centroid fallback (~15ms) for remaining inputs. All decisions are cached in SQLite. This makes content-to-voice dispatch a solved problem for automated pipelines, batch generation, and real-time voice agents.
 
-VoxID is designed as an open-source, local-first library with REST API, CLI, and plugin surfaces. It does not compete with TTS engines — it is the management and orchestration layer above them, analogous to how a container runtime relates to the underlying OS. The platform ships with first-class support for Qwen3-TTS, Fish Speech, CosyVoice2, IndexTTS-2, and Chatterbox, with an adapter protocol for future engines.
+VoxID is designed as an open-source, local-first library with REST API, CLI, and plugin surfaces. It does not compete with TTS engines — it is the persona management and orchestration layer above them, analogous to how a container runtime relates to the underlying OS. The platform ships with first-class support for Qwen3-TTS, Fish Speech, CosyVoice2, IndexTTS-2, and Chatterbox, with an adapter protocol for future engines.
 
 ---
 
 ## Problem Statement
 
-### The Missing Identity Layer
+### The Missing Persona Layer
 
-Voice cloning tools operate at the sample level. You provide a reference audio file, the engine extracts a speaker embedding, and generation proceeds against that embedding. There is no concept of a persistent identity — a named entity whose voice characteristics persist across sessions, accumulate styles over time, and can be exported, versioned, or transferred.
+Voice cloning tools operate at the sample level. You provide a reference audio file, the engine extracts a speaker embedding, and generation proceeds against that embedding. There is no concept of a persistent voice persona — a named entity whose voice characteristics persist across sessions, accumulate styles over time, and can be exported, versioned, or transferred.
 
 The practical consequence: a developer building a voice-enabled product must maintain their own mapping between use cases and audio files, re-extract embeddings manually when upgrading engine versions, and embed sample-selection logic directly in application code. When a brand wants four voice registers (casual, formal, energetic, narrative), they manage four independent sample sets with no shared metadata, no routing intelligence, and no portable archive format.
 
@@ -51,7 +51,7 @@ Voice generation in agentic systems — pipelines where an LLM produces output t
 
 ### Portability and Provenance
 
-Serialized voice embeddings are engine-specific and lack a portable format. Moving a voice profile from one engine to another, or sharing it between team members, requires re-extraction from the original audio (if still available) and manual reconstruction of metadata. There is no standard archive format for voice identities, no consent record, and no watermarking for provenance verification.
+Serialized voice embeddings are engine-specific and lack a portable format. Moving a voice profile from one engine to another, or sharing it between team members, requires re-extraction from the original audio (if still available) and manual reconstruction of metadata. There is no standard archive format for voice personas, no consent record, and no watermarking for provenance verification.
 
 ---
 
@@ -81,7 +81,7 @@ The adapter layer is the dispatch layer. It normalizes the interface across TTS 
 
 ## Key Capabilities
 
-- **Multi-style voice identities** — named entities with multiple registers, persisted as TOML + SafeTensors
+- **Multi-style voice personas** — named entities with multiple registers, persisted as TOML + SafeTensors
 - **Three-tier style routing** — rule-based (~0ms) → semantic MLP classifier (~10ms) → centroid fallback (~15ms) with SQLite LRU cache
 - **Engine-agnostic generation** — single API across Qwen3-TTS, Fish Speech, CosyVoice2, IndexTTS-2, Chatterbox
 - **Prosodic boundary segmentation** — segment-level routing for long-form text using boundary detection, not paragraph splits
@@ -99,7 +99,7 @@ The adapter layer is the dispatch layer. It normalizes the interface across TTS 
 - **Streaming generation** — speculative style routing with streaming output for real-time applications
 - **Word-level timing extraction** — NeMo Forced Aligner integration for subtitle and animation sync
 - **AudioSeal watermarking** — provenance tracking embedded in all generated audio
-- **Portable `.voxid` archives** — HMAC-signed archives with consent records for voice identity transfer
+- **Portable `.voxid` archives** — HMAC-signed archives with consent records for voice persona transfer
 - **Router decision cache** — SQLite LRU cache for deterministic inputs; configurable TTL
 - **Video skill integration** — SceneManifest contract for Manim and Remotion pipelines
 
@@ -250,11 +250,11 @@ graph LR
 
 No open-source project performs content-to-style routing. Every tool in the landscape requires the caller to select which voice sample to use. VoxID is the only system that analyzes text content and automatically selects the appropriate voice register — making style-consistent voice generation feasible in automated pipelines without per-segment human annotation.
 
-Fish Speech has multi-speaker tokens and IndexTTS-2 has emotion disentanglement, but these are engine-internal features that do not generalize across engines and do not expose an identity management API. They solve a different problem (multi-speaker generation within a single model) rather than the identity management and routing problem VoxID addresses.
+Fish Speech has multi-speaker tokens and IndexTTS-2 has emotion disentanglement, but these are engine-internal features that do not generalize across engines and do not expose a persona management API. They solve a different problem (multi-speaker generation within a single model) rather than the persona management and routing problem VoxID addresses.
 
 ### Market Positioning
 
-VoxID does not compete with TTS engines — it is the management and orchestration layer above them. The relationship is analogous to a container runtime and the underlying OS: each provides a different abstraction at a different level of the stack. Engines compete on audio quality, latency, and model architecture. VoxID competes on identity coherence, routing accuracy, and portability.
+VoxID does not compete with TTS engines — it is the persona management and orchestration layer above them. The relationship is analogous to a container runtime and the underlying OS: each provides a different abstraction at a different level of the stack. Engines compete on audio quality, latency, and model architecture. VoxID competes on persona coherence, routing accuracy, and portability.
 
 This positioning means VoxID benefits from improvements in the underlying engines. A higher-quality Qwen3-TTS or Fish Speech release makes VoxID-dispatched generation better without requiring changes to the identity or routing layer.
 
@@ -266,7 +266,7 @@ This positioning means VoxID benefits from improvements in the underlying engine
 
 **Video production pipelines** — Manim and Remotion users who need voice generation tightly coupled to scene timing, requiring word-level alignment and adaptive pause durations.
 
-**Brand voice teams** — organizations managing a consistent voice identity across marketing channels, product surfaces, and locales, requiring a portable and auditable voice archive.
+**Brand voice teams** — organizations managing a consistent voice persona across marketing channels, product surfaces, and locales, requiring a portable and auditable voice archive.
 
 **Agentic system builders** — developers wiring LLM output to voice generation where automatic style selection removes a manual integration step from the pipeline.
 
@@ -328,7 +328,7 @@ This positioning means VoxID benefits from improvements in the underlying engine
 
 **CRITICAL — Pickle serialization is an RCE vector.** The initial design draft used pickle for voice prompt serialization. A malicious `.voxid` archive containing a crafted `prompt.pkl` file is a full remote code execution vector — pickle `__reduce__` methods execute arbitrary code on deserialization. This must be resolved before any import/export functionality ships. Mitigation: replace all pickle serialization with SafeTensors; apply HMAC signing to archive manifests so tampering is detectable before deserialization; reject archives with invalid signatures at import time.
 
-**Voice identity theft.** Stored voice profiles represent a high-value target — an attacker with filesystem access to `~/.voxid/` gains the ability to generate audio in any registered identity. Mitigation: AudioSeal watermarking embeds a detectable provenance signal in all generated audio; consent records in `.voxid` archives document authorized use scope; filesystem permissions on the identity store default to user-only access.
+**Voice persona theft.** Stored voice profiles represent a high-value target — an attacker with filesystem access to `~/.voxid/` gains the ability to generate audio in any registered persona. Mitigation: AudioSeal watermarking embeds a detectable provenance signal in all generated audio; consent records in `.voxid` archives document authorized use scope; filesystem permissions on the identity store default to user-only access.
 
 **Reference audio tampering.** An attacker who modifies reference audio in an imported archive can cause re-extraction to produce a different speaker embedding than intended. Mitigation: HMAC manifest signing covers reference audio files; AudioSeal verification on import detects if reference audio was previously generated (potential deepfake input) rather than authentic recording.
 
@@ -344,9 +344,9 @@ This positioning means VoxID benefits from improvements in the underlying engine
 
 ### Market Risks
 
-**TTS engines adding native identity management.** Fish Speech already ships multi-speaker token support; IndexTTS-2 has emotion disentanglement. If a leading engine adds a full identity management API, it reduces VoxID's addressable surface for that engine. Mitigation: VoxID's value is engine-agnostic orchestration — a single identity working across multiple engines is not achievable by any single engine's native identity features. The adapter layer insulates users from engine lock-in.
+**TTS engines adding native persona management.** Fish Speech already ships multi-speaker token support; IndexTTS-2 has emotion disentanglement. If a leading engine adds a full persona management API, it reduces VoxID's addressable surface for that engine. Mitigation: VoxID's value is engine-agnostic orchestration — a single persona working across multiple engines is not achievable by any single engine's native features. The adapter layer insulates users from engine lock-in.
 
-**Cloud providers bundling voice identity into managed platforms.** AWS, Google, and Azure all have voice APIs. If they add identity management, they compete directly with VoxID's REST API surface for cloud-hosted deployments. Mitigation: local-first architecture and open-source licensing give VoxID access to users who cannot or will not send voice data to cloud providers (privacy, latency, cost, or regulatory reasons). The portable `.voxid` archive format provides a migration path that cloud-hosted identities cannot match.
+**Cloud providers bundling voice personas into managed platforms.** AWS, Google, and Azure all have voice APIs. If they add persona management, they compete directly with VoxID's REST API surface for cloud-hosted deployments. Mitigation: local-first architecture and open-source licensing give VoxID access to users who cannot or will not send voice data to cloud providers (privacy, latency, cost, or regulatory reasons). The portable `.voxid` archive format provides a migration path that cloud-hosted personas cannot match.
 
 ---
 

@@ -265,7 +265,7 @@ if check_ffmpeg():
 ### Identity Commands
 
 ```bash
-# Create a voice identity
+# Create a voice persona
 voxid identity create alice --name "Alice Chen" --description "AI engineer"
 
 # Create with custom default style
