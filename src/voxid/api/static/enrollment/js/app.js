@@ -178,7 +178,7 @@ async function initDashboard() {
             list.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">🎤</div>
-                    <div>No voice identities yet.</div>
+                    <div>No voice personas yet.</div>
                     <div style="margin-top:8px;font-size:13px">Create one to get started.</div>
                 </div>`;
             return;

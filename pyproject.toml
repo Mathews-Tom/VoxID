@@ -1,14 +1,14 @@
 [project]
 name = "voxid"
 version = "0.3.1"
-description = "Voice Identity Management Platform"
+description = "Voice Persona Platform"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 authors = [
     { name = "Tom Mathews", email = "mathews.tom@gmail.com" },
 ]
-keywords = ["voice", "identity", "tts", "voice-cloning", "enrollment", "speech"]
+keywords = ["voice", "persona", "tts", "voice-cloning", "enrollment", "speech", "identity"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",

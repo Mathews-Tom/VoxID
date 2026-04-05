@@ -31,12 +31,12 @@ from .enrollment.session import (
 
 @click.group()
 def cli() -> None:
-    """VoxID — Voice Identity Management Platform"""
+    """VoxID — Voice Persona Platform"""
 
 
 @cli.group()
 def identity() -> None:
-    """Manage voice identities."""
+    """Manage voice personas."""
 
 
 @identity.command("create")
@@ -55,7 +55,7 @@ def identity_create(
     description: str | None,
     default_style: str,
 ) -> None:
-    """Create a new voice identity."""
+    """Create a new voice persona."""
     vox = VoxID()
     ident = vox.create_identity(
         id=identity_id,
@@ -64,8 +64,7 @@ def identity_create(
         default_style=default_style,
     )
     click.echo(
-        click.style("Created identity: ", fg="green")
-        + click.style(ident.id, bold=True)
+        click.style("Created identity: ", fg="green") + click.style(ident.id, bold=True)
     )
     click.echo(f"  name:          {ident.name}")
     click.echo(f"  default_style: {ident.default_style}")
@@ -74,7 +73,7 @@ def identity_create(
 
 @identity.command("list")
 def identity_list() -> None:
-    """List all voice identities."""
+    """List all voice personas."""
     vox = VoxID()
     ids = vox.list_identities()
     if not ids:
@@ -88,7 +87,7 @@ def identity_list() -> None:
 @click.argument("identity_id")
 @click.option("--force", is_flag=True, help="Skip confirmation prompt.")
 def identity_delete(identity_id: str, force: bool) -> None:
-    """Delete a voice identity and all its data."""
+    """Delete a voice persona and all its data."""
     vox = VoxID()
     # Verify identity exists before prompting
     ids = vox.list_identities()
@@ -189,10 +188,7 @@ def style_rebuild(identity_id: str, style_id: str, engine: str) -> None:
     # Invalidate existing cache so _ensure_prompt rebuilds
     vox._store.invalidate_prompt_cache(identity_id, style_id, engine)
     prompt_path = vox._ensure_prompt(identity_id, style_id, engine)
-    click.echo(
-        click.style("Rebuilt prompt cache: ", fg="green")
-        + str(prompt_path)
-    )
+    click.echo(click.style("Rebuilt prompt cache: ", fg="green") + str(prompt_path))
 
 
 @cli.command()
@@ -288,8 +284,7 @@ def generate(
         if stitched is not None and stitched.exists():
             total_s = manifest_result.total_duration_ms / 1000
             click.echo(
-                click.style("Stitched: ", fg="green")
-                + f"{stitched} ({total_s:.1f}s)"
+                click.style("Stitched: ", fg="green") + f"{stitched} ({total_s:.1f}s)"
             )
         return
 
@@ -313,9 +308,7 @@ def generate(
         )
 
         click.echo(
-            click.style(
-                f"Segment plan ({len(result.plan)} segments):", fg="cyan"
-            )
+            click.style(f"Segment plan ({len(result.plan)} segments):", fg="cyan")
         )
         for item in result.plan:
             smoothed_label = "smoothed" if item.was_smoothed else item.tier
@@ -332,9 +325,7 @@ def generate(
             else Path("output/segments")
         )
         click.echo(
-            click.style(
-                f"\nGenerated {len(result.segments)} segments", fg="green"
-            )
+            click.style(f"\nGenerated {len(result.segments)} segments", fg="green")
             + f" → {seg_dir}"
         )
 
@@ -367,10 +358,7 @@ def generate(
         shutil.copy2(audio_path, output)
         audio_path = type(audio_path)(output)
 
-    click.echo(
-        click.style("Generated: ", fg="green")
-        + str(audio_path)
-    )
+    click.echo(click.style("Generated: ", fg="green") + str(audio_path))
     click.echo(f"  sample_rate: {sr} Hz")
 
 
@@ -387,7 +375,9 @@ def route(text: str, identity_id: str) -> None:
     click.echo(f"  tier:       {result['tier']}")
     click.echo("  scores:")
     for s, score in sorted(
-        result["scores"].items(), key=lambda x: x[1], reverse=True,
+        result["scores"].items(),
+        key=lambda x: x[1],
+        reverse=True,
     ):
         bar = "█" * int(score * 20)
         click.echo(f"    {s:20s} {score:.2f} {bar}")
@@ -402,11 +392,11 @@ def export_cmd(identity_id: str, output: str, key: str | None) -> None:
     vox = VoxID()
     signing_key = key.encode() if key else None
     path = vox.export_identity(
-        identity_id, Path(output), signing_key,
+        identity_id,
+        Path(output),
+        signing_key,
     )
-    click.echo(
-        click.style("Exported: ", fg="green") + str(path)
-    )
+    click.echo(click.style("Exported: ", fg="green") + str(path))
 
 
 @cli.command("import")
@@ -417,12 +407,10 @@ def import_cmd(archive: str, key: str | None) -> None:
     vox = VoxID()
     signing_key = key.encode() if key else None
     identity = vox.import_identity(
-        Path(archive), signing_key,
+        Path(archive),
+        signing_key,
     )
-    click.echo(
-        click.style("Imported: ", fg="green")
-        + identity.id
-    )
+    click.echo(click.style("Imported: ", fg="green") + identity.id)
 
 
 @cli.command()
@@ -453,14 +441,10 @@ def serve(
         import os
 
         os.environ["VOXID_SERVING_CONFIG"] = serving_config_path
-        click.echo(
-            click.style("Multi-GPU serving: ", fg="cyan")
-            + serving_config_path
-        )
+        click.echo(click.style("Multi-GPU serving: ", fg="cyan") + serving_config_path)
 
     click.echo(
-        click.style("Starting VoxID API server", fg="green")
-        + f" on {host}:{port}"
+        click.style("Starting VoxID API server", fg="green") + f" on {host}:{port}"
     )
     uvicorn.run(
         "voxid.api.app:create_app",
@@ -525,7 +509,7 @@ def enroll(
     skip_consent: bool,
     language: str | None,
 ) -> None:
-    """Enroll a voice identity with guided recording or audio import."""
+    """Enroll a voice persona with guided recording or audio import."""
     vox = VoxID()
     store_path = vox._store._root
     style_list = [s.strip() for s in styles.split(",")]
@@ -589,7 +573,8 @@ def enroll(
             prompts: dict[str, list[EnrollmentPrompt]] = {}
             for s in style_list:
                 ml_prompts = ml_gen.select_prompts(
-                    language, count=prompts_per_style,
+                    language,
+                    count=prompts_per_style,
                 )
                 prompts[s] = [
                     EnrollmentPrompt(
@@ -608,7 +593,8 @@ def enroll(
         else:
             prompts = {
                 s: generator.select_prompts(
-                    s, count=prompts_per_style,
+                    s,
+                    count=prompts_per_style,
                 )
                 for s in style_list
             }
@@ -670,8 +656,7 @@ def _handle_consent(
             )
             return
         raise click.ClickException(
-            "No existing consent record. "
-            "Record consent first (remove --skip-consent)."
+            "No existing consent record. Record consent first (remove --skip-consent)."
         )
 
     statement = consent_mgr.generate_statement(identity_name)
@@ -701,8 +686,7 @@ def _handle_consent(
 
     if not report.passed:
         raise click.ClickException(
-            "Consent recording failed quality check. "
-            "Re-run enrollment to try again."
+            "Consent recording failed quality check. Re-run enrollment to try again."
         )
 
     consent_mgr.record_consent(
@@ -724,9 +708,7 @@ def _run_recording_loop(
 ) -> None:
     """Interactive recording loop for each prompt in the session."""
     recorder = AudioRecorder(device=device)
-    total_prompts = sum(
-        len(p) for p in session.prompts.values()
-    )
+    total_prompts = sum(len(p) for p in session.prompts.values())
     prompt_counter = 0
 
     while session.current_prompt() is not None:
@@ -769,8 +751,7 @@ def _run_recording_loop(
 
             processed, proc_sr = preprocessor.process(audio, sr)
             audio_dir = (
-                store_path / "enrollment_sessions"
-                / session.session_id / "samples"
+                store_path / "enrollment_sessions" / session.session_id / "samples"
             )
             audio_path = audio_dir / f"{style}_{prompt_counter}.wav"
             save_recording(processed, proc_sr, audio_path)
@@ -821,8 +802,7 @@ def _run_import_mode(
 ) -> None:
     """Non-interactive import of pre-recorded audio files."""
     audio_files = sorted(
-        list(import_path.glob("*.wav"))
-        + list(import_path.glob("*.mp3")),
+        list(import_path.glob("*.wav")) + list(import_path.glob("*.mp3")),
     )
     if not audio_files:
         raise click.ClickException(
@@ -831,9 +811,7 @@ def _run_import_mode(
 
     for style in style_list:
         # Match by filename stem: conversational.wav → style "conversational"
-        matched = [
-            f for f in audio_files if f.stem == style
-        ]
+        matched = [f for f in audio_files if f.stem == style]
         if not matched:
             # Fall back: assign files round-robin
             idx = style_list.index(style)
@@ -864,7 +842,8 @@ def _run_import_mode(
         if best_path is None:
             click.echo(
                 click.style(
-                    f"  No passing audio for style '{style}'", fg="red",
+                    f"  No passing audio for style '{style}'",
+                    fg="red",
                 ),
             )
             continue
@@ -884,8 +863,7 @@ def _run_import_mode(
             transcript = f"Enrollment audio for {style}"
             click.echo(
                 click.style(
-                    f"  No transcript sidecar ({transcript_path.name}), "
-                    f"using default",
+                    f"  No transcript sidecar ({transcript_path.name}), using default",
                     fg="yellow",
                 ),
             )
@@ -914,7 +892,8 @@ def _register_styles(
         if best is None or best.audio_path is None:
             click.echo(
                 click.style(
-                    f"  No accepted sample for '{style}'", fg="yellow",
+                    f"  No accepted sample for '{style}'",
+                    fg="yellow",
                 ),
             )
             continue

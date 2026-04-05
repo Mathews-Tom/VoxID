@@ -135,7 +135,7 @@ class TestEnrollCommand:
     def test_enroll_command_exists(self, cli_runner: CliRunner) -> None:
         result = cli_runner.invoke(cli, ["enroll", "--help"])
         assert result.exit_code == 0
-        assert "Enroll a voice identity" in result.output
+        assert "Enroll a voice persona" in result.output
 
     def test_enroll_requires_identity_id(
         self, cli_runner: CliRunner,
