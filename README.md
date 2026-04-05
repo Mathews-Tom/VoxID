@@ -1,28 +1,26 @@
 # VoxID
 
-**Persistent voice identities across any TTS engine.**
+**Persistent voice personas across any TTS engine.**
 
 [![Release](https://img.shields.io/github/v/release/Mathews-Tom/VoxID?label=release&color=blue)](https://github.com/Mathews-Tom/VoxID/releases)
 [![Python](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](https://pypi.org/project/voxid/)
 [![License](https://img.shields.io/github/license/Mathews-Tom/VoxID?color=orange)](LICENSE)
 
-Voice Identity Management Platform — a local-first Python library, CLI, and REST API for managing persistent voice identities across multiple TTS engines.
+Voice Persona Platform — a local-first Python library, CLI, and REST API for managing persistent voice personas across multiple TTS engines.
 
-<video src="https://github.com/user-attachments/assets/ab4e702f-fcfe-4c4e-b681-e96dac0c990c" width="100%" autoplay loop muted playsinline></video>
-
-[Watch demo →](https://github.com/user-attachments/assets/ab4e702f-fcfe-4c4e-b681-e96dac0c990c)
+<video src="https://github.com/user-attachments/assets/2515da67-6997-428c-9c42-a5d1f3ff5bc4" width="100%" autoplay loop muted playsinline></video>
 
 ## Why VoxID?
 
-Every TTS engine has its own prompt format, speaker embedding scheme, and API surface. Switching engines means re-recording reference audio, rebuilding prompts, and rewriting integration code. Voice consistency breaks across sessions, engines, and languages — there is no standard for voice identity persistence.
+Every TTS engine has its own prompt format, speaker embedding scheme, and API surface. Switching engines means re-recording reference audio, rebuilding prompts, and rewriting integration code. Voice consistency breaks across sessions, engines, and languages — there is no standard for voice persona persistence.
 
-VoxID sits between your application and TTS engines. It introduces **voice identities** — named entities that own multiple voice styles, each backed by precomputed speaker embeddings, versioned on disk, and automatically selected based on text content. Enroll once, generate anywhere.
+VoxID sits between your application and TTS engines. It introduces **voice personas** — named entities that own multiple voice styles, each backed by precomputed speaker embeddings, versioned on disk, and automatically selected based on text content. Enroll once, generate anywhere.
 
 ## Features
 
 ### Core
 
-- **Multi-style voice identities** — named entities with multiple registers (conversational, technical, narration, emphatic), persisted as TOML + SafeTensors
+- **Multi-style voice personas** — named entities with multiple registers (conversational, technical, narration, emphatic), persisted as TOML + SafeTensors
 - **Engine-agnostic generation** — single API across Qwen3-TTS, Fish Speech, CosyVoice2, IndexTTS-2, and Chatterbox
 - **Three-tier style routing** — rule-based (~0ms) → semantic MLP classifier (~10ms) → centroid fallback (~15ms) with SQLite LRU cache
 - **Segment-level routing** — long-form text is split at prosodic boundaries, each segment routed independently with smoothing to prevent style thrashing
